@@ -1,0 +1,21 @@
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;
+  padding: 16px;
+  background: #fff;
+  color: #111;
+}
+
+nav {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+video {
+  width: 100%;
+  max-width: 640px;
+  background: #000;
+  display: block;
+  margin-bottom: 12px;
+}

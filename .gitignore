@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.env.local
+.DS_Store
+Thumbs.db
+
+# Training videos live in Google Drive, not git
+data/videos/
+*.mp4
+*.mov
+*.webm
+
+# Python
+__pycache__/
+.venv/
+.ipynb_checkpoints/
