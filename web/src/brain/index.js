@@ -4,6 +4,9 @@ import { validateRep } from "../shared/contract.js";
 
 import { createPoseLandmarker, openCamera, detect } from "./pose.js";
 
+import { kneeAngle, torsoLean } from "./angles.js";
+import { createLandmarkSmoother } from "./smoothing.js";
+
 export { drawSkeleton } from "./pose.js";
 
 /**
@@ -25,6 +28,7 @@ async function startReal(video, { mode = "live", onFrame = () => {} }) {
   const releaseCamera = mode === "live" ? await openCamera(video) : null;
   if (mode === "file") await video.play();
 
+  const smooth = createLandmarkSmoother();
   let running = true;
   let lastVideoTime = -1;
 
@@ -34,10 +38,18 @@ async function startReal(video, { mode = "live", onFrame = () => {} }) {
     if (video.currentTime !== lastVideoTime) {
       lastVideoTime = video.currentTime;
       const now = performance.now();
-      const landmarks = detect(landmarker, video, now);
-      if (landmarks) {
-        // TODO(farhan): angles.js -> smoothing.js -> repCounter.js -> formRules.js -> onRep
-        onFrame({ timestamp: Date.now(), landmarks, kneeAngle: null, torsoLean: null, phase: null });
+      const raw = detect(landmarker, video, now);
+      if (raw) {
+        // TODO(farhan): repCounter.js -> formRules.js -> onRep
+        const landmarks = smooth(raw, now);
+        const aspect = video.videoWidth / video.videoHeight;
+        onFrame({
+          timestamp: Date.now(),
+          landmarks,
+          kneeAngle: kneeAngle(landmarks, aspect),
+          torsoLean: torsoLean(landmarks, aspect),
+          phase: null,
+        });
       }
     }
     requestAnimationFrame(loop);

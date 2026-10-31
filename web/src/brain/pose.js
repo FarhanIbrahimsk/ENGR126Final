@@ -19,6 +19,10 @@ export async function createPoseLandmarker() {
     baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
     runningMode: "VIDEO",
     numPoses: 1,
+    // Defaults are 0.5. Lower helps it find a body that's partly out of frame
+    // (e.g. head cut off), at the cost of occasional false detections.
+    minPoseDetectionConfidence: 0.3,
+    minPosePresenceConfidence: 0.3,
   });
 }
 
