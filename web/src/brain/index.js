@@ -2,6 +2,11 @@
 import { mockReps } from "../shared/mockReps.js";
 import { validateRep } from "../shared/contract.js";
 
+import { createPoseLandmarker, openCamera, detect } from "./pose.js";
+
+import { kneeAngle, torsoLean } from "./angles.js";
+import { createLandmarkSmoother } from "./smoothing.js";
+
 export { drawSkeleton } from "./pose.js";
 
 /**
@@ -14,15 +19,48 @@ export { drawSkeleton } from "./pose.js";
 export async function startTracking(video, options = {}) {
   const { mock = true } = options;
   if (mock) return startMock(options);
+  return startReal(video, options);
+}
 
-  // TODO(farhan): real pipeline, wk1-2
-  //   1. pose.js       -> open camera / file, run MediaPipe each frame
-  //   2. angles.js     -> knee angle + torso lean from landmarks
-  //   3. smoothing.js  -> steady the angles
-  //   4. repCounter.js -> detect completed reps
-  //   5. formRules.js  -> flags; classifier.js -> label (wk5)
-  //   6. call onFrame every frame, onRep per rep
-  throw new Error("Real tracking not built yet — pass { mock: true }");
+// Real pipeline. Steps 1 and 6 (onFrame) are done; the rest are still TODO.
+async function startReal(video, { mode = "live", onFrame = () => {} }) {
+  const landmarker = await createPoseLandmarker();
+  const releaseCamera = mode === "live" ? await openCamera(video) : null;
+  if (mode === "file") await video.play();
+
+  const smooth = createLandmarkSmoother();
+  let running = true;
+  let lastVideoTime = -1;
+
+  const loop = () => {
+    if (!running) return;
+    // Only run the model when the video has a new frame.
+    if (video.currentTime !== lastVideoTime) {
+      lastVideoTime = video.currentTime;
+      const now = performance.now();
+      const raw = detect(landmarker, video, now);
+      if (raw) {
+        // TODO(farhan): repCounter.js -> formRules.js -> onRep
+        const landmarks = smooth(raw, now);
+        const aspect = video.videoWidth / video.videoHeight;
+        onFrame({
+          timestamp: Date.now(),
+          landmarks,
+          kneeAngle: kneeAngle(landmarks, aspect),
+          torsoLean: torsoLean(landmarks, aspect),
+          phase: null,
+        });
+      }
+    }
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+
+  return () => {
+    running = false;
+    if (releaseCamera) releaseCamera();
+    landmarker.close();
+  };
 }
 
 // Sends one fake rep every 3 seconds.
