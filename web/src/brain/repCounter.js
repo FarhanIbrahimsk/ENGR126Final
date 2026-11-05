@@ -14,7 +14,8 @@ const MIN_ASCENT = 25; // must rise this far from the bottom before going back d
  * @param {{ lift?: string, onRep: (rep: object, details: { lockedOut: boolean }) => void }} options
  *   onRep gets a contract Rep (ruleFlags empty, classifier null) plus details for formRules.
  * @returns {{ update: (frame: { kneeAngle: number, torsoLean: number, hipBelowKnee: boolean,
- *   timestamp: number }) => string }} update returns the current phase
+ *   timestamp: number }) => string, end: (timestamp: number) => void }}
+ *   update returns the current phase; end closes out a video that stops mid-rep
  */
 export function createRepCounter({ lift = "squat", onRep }) {
   let phase = "standing";
@@ -97,5 +98,12 @@ export function createRepCounter({ lift = "squat", onRep }) {
     return phase;
   };
 
-  return { update };
+  // Count a rep the video cut off on the way up; one still going down isn't a rep yet.
+  const end = (timestamp) => {
+    if (phase === "ascending") finish({ timestamp }, false);
+    current = null;
+    phase = "standing";
+  };
+
+  return { update, end };
 }

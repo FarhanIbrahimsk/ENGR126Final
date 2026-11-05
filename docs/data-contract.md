@@ -20,7 +20,10 @@ stop(); // ends tracking, releases the camera
 
 - `source` is a `<video>` element. For live mode it shows the webcam; for video-file mode it
   plays an uploaded file. The brain handles both the same way.
-- `options.mode`: `"live"` (default) or `"file"`.
+- `options.mode`: `"live"` (default) or `"file"`. For `"file"`, set `video.src` first; tracking
+  starts the video from its current position. Don't seek while it's running.
+- `options.onEnd`: called once when a video file finishes, after any final rep. Still call
+  `stop()` afterwards.
 - `options.mock`: `true` sends fake reps instead of running the real brain.
 
 ## Rep (sent to `onRep`)

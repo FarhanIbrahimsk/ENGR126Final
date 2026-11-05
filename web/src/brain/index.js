@@ -14,7 +14,8 @@ export { drawSkeleton } from "./pose.js";
  * Start tracking a lifter in a <video> element.
  * @param {HTMLVideoElement} video
  * @param {{ lift?: string, mode?: "live"|"file", mock?: boolean,
- *           onFrame?: (frame: object) => void, onRep?: (rep: object) => void }} options
+ *           onFrame?: (frame: object) => void, onRep?: (rep: object) => void,
+ *           onEnd?: () => void }} options  onEnd fires when a video file finishes
  * @returns {Promise<() => void>} call it to stop tracking
  */
 export async function startTracking(video, options = {}) {
@@ -24,10 +25,15 @@ export async function startTracking(video, options = {}) {
 }
 
 // Real pipeline. Form rules (wk3) and classifier (wk5) still TODO.
-async function startReal(video, { lift = "squat", mode = "live", onFrame = () => {}, onRep = () => {} }) {
+async function startReal(video, { lift = "squat", mode = "live", onFrame = () => {}, onRep = () => {}, onEnd = () => {} }) {
+  const isFile = mode === "file";
   const landmarker = await createPoseLandmarker();
-  const releaseCamera = mode === "live" ? await openCamera(video) : null;
-  if (mode === "file") await video.play();
+  const releaseCamera = isFile ? null : await openCamera(video);
+  if (isFile) await video.play();
+
+  // Files run on video time, so rep durations stay right if playback speed changes or stalls.
+  const fileStart = Date.now() - video.currentTime * 1000;
+  const clock = () => (isFile ? Math.round(fileStart + video.currentTime * 1000) : Date.now());
 
   const smooth = createLandmarkSmoother();
   // TODO(farhan): wk3 — run formRules.js on (rep, details) to fill rep.ruleFlags
@@ -46,7 +52,7 @@ async function startReal(video, { lift = "squat", mode = "live", onFrame = () =>
         const landmarks = smooth(raw, now);
         const aspect = video.videoWidth / video.videoHeight;
         const frame = {
-          timestamp: Date.now(),
+          timestamp: clock(),
           landmarks,
           kneeAngle: kneeAngle(landmarks, aspect),
           torsoLean: torsoLean(landmarks, aspect),
@@ -59,9 +65,19 @@ async function startReal(video, { lift = "squat", mode = "live", onFrame = () =>
   };
   requestAnimationFrame(loop);
 
+  const handleEnded = () => {
+    counter.end(clock());
+    onEnd();
+  };
+  if (isFile) video.addEventListener("ended", handleEnded, { once: true });
+
   return () => {
     running = false;
     if (releaseCamera) releaseCamera();
+    if (isFile) {
+      video.removeEventListener("ended", handleEnded);
+      video.pause();
+    }
     landmarker.close();
   };
 }
