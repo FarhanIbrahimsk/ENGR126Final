@@ -53,6 +53,15 @@ export function kneeAngle(landmarks, aspect = 1) {
 }
 
 /**
+ * Squat depth check: is the hip lower than the knee? (Image y grows downward.)
+ * @param {object[]} landmarks 33 MediaPipe landmarks
+ */
+export function hipBelowKnee(landmarks) {
+  const s = SIDES[pickSide(landmarks)];
+  return landmarks[s.hip].y > landmarks[s.knee].y;
+}
+
+/**
  * Torso lean: angle of the hip-to-shoulder line from vertical. 0 is upright,
  * larger is more forward lean.
  * @param {object[]} landmarks 33 MediaPipe landmarks
