@@ -99,3 +99,125 @@ td {
   border-bottom: 1px solid #ddd;
   white-space: nowrap;
 }
+
+.section-title {
+  font-size: 1.2rem;
+  margin: 24px 0 12px;
+}
+
+.charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 24px;
+  max-width: 960px;
+}
+
+.charts section {
+  min-width: 0;
+}
+
+.charts h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.chart-note {
+  font-size: 0.8rem;
+  color: #555;
+  margin: 2px 0 8px;
+}
+
+.chart {
+  position: relative;
+}
+
+.chart svg {
+  display: block;
+  touch-action: pan-y;
+  cursor: crosshair;
+}
+
+.chart-grid {
+  stroke: #e8e8e6;
+  stroke-width: 1;
+}
+
+.chart-axis {
+  fill: #555;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-end-label {
+  fill: #111;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.chart-crosshair {
+  stroke: #999;
+  stroke-width: 1;
+}
+
+.chart-line {
+  fill: none;
+  stroke: #2a78d6;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-dot {
+  fill: #2a78d6;
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 8px;
+  padding: 4px 8px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.chart-tooltip strong,
+.chart-tooltip span {
+  display: block;
+}
+
+.chart-tooltip span {
+  color: #555;
+}
+
+.sessions {
+  max-width: 640px;
+}
+
+.session {
+  border-bottom: 1px solid #ddd;
+  padding: 10px 0;
+}
+
+.session summary {
+  cursor: pointer;
+}
+
+.session summary span {
+  display: block;
+  margin: 2px 0 0 1.1em;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.session .set:first-of-type {
+  margin-top: 12px;
+}
+
+.session .set:last-child {
+  margin-bottom: 12px;
+}
