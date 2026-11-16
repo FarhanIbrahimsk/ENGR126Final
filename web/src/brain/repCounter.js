@@ -11,7 +11,7 @@ const REVERSAL = 10; // degrees of change that count as switching direction
 const MIN_ASCENT = 25; // must rise this far from the bottom before going back down ends a rep
 
 /**
- * @param {{ lift?: string, onRep: (rep: object, details: { lockedOut: boolean }) => void }} options
+ * @param {{ lift?: string, onRep: (rep: object, details: { lockedOut: boolean|null }) => void }} options
  *   onRep gets a contract Rep (ruleFlags empty, classifier null) plus details for formRules.
  * @returns {{ update: (frame: { kneeAngle: number, torsoLean: number, hipBelowKnee: boolean,
  *   timestamp: number }) => string, end: (timestamp: number) => void }}
@@ -100,7 +100,7 @@ export function createRepCounter({ lift = "squat", onRep }) {
 
   // Count a rep the video cut off on the way up; one still going down isn't a rep yet.
   const end = (timestamp) => {
-    if (phase === "ascending") finish({ timestamp }, false);
+    if (phase === "ascending") finish({ timestamp }, null); // unknown: did it stand up after the cut?
     current = null;
     phase = "standing";
   };

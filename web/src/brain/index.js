@@ -7,8 +7,12 @@ import { createPoseLandmarker, openCamera, detect } from "./pose.js";
 import { kneeAngle, torsoLean, hipBelowKnee } from "./angles.js";
 import { createLandmarkSmoother } from "./smoothing.js";
 import { createRepCounter } from "./repCounter.js";
+import { checkForm } from "./formRules.js";
+import { loadClassifier } from "./classifier.js";
 
 export { drawSkeleton } from "./pose.js";
+export { checkForm } from "./formRules.js";
+export { loadClassifier } from "./classifier.js";
 
 /**
  * Start tracking a lifter in a <video> element.
@@ -24,20 +28,33 @@ export async function startTracking(video, options = {}) {
   return startReal(video, options);
 }
 
-// Real pipeline. Form rules (wk3) and classifier (wk5) still TODO.
+// Real pipeline: pose -> angles -> rep counter -> form rules + classifier.
 async function startReal(video, { lift = "squat", mode = "live", onFrame = () => {}, onRep = () => {}, onEnd = () => {} }) {
   const isFile = mode === "file";
   const landmarker = await createPoseLandmarker();
-  const releaseCamera = isFile ? null : await openCamera(video);
-  if (isFile) await video.play();
+  const classify = await loadClassifier();
+  let releaseCamera = null;
+  try {
+    if (isFile) await video.play();
+    else releaseCamera = await openCamera(video);
+  } catch (err) {
+    landmarker.close();
+    throw err;
+  }
 
   // Files run on video time, so rep durations stay right if playback speed changes or stalls.
   const fileStart = Date.now() - video.currentTime * 1000;
   const clock = () => (isFile ? Math.round(fileStart + video.currentTime * 1000) : Date.now());
 
   const smooth = createLandmarkSmoother();
-  // TODO(farhan): wk3 — run formRules.js on (rep, details) to fill rep.ruleFlags
-  const counter = createRepCounter({ lift, onRep: (rep) => onRep(rep) });
+  const counter = createRepCounter({
+    lift,
+    onRep: (rep, details) => {
+      rep.ruleFlags = checkForm(rep, details);
+      rep.classifier = classify(rep);
+      onRep(rep);
+    },
+  });
   let running = true;
   let lastVideoTime = -1;
 
