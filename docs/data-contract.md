@@ -20,8 +20,14 @@ stop(); // ends tracking, releases the camera
 
 - `source` is a `<video>` element. For live mode it shows the webcam; for video-file mode it
   plays an uploaded file. The brain handles both the same way.
-- `options.mode`: `"live"` (default) or `"file"`.
+- `options.mode`: `"live"` (default) or `"file"`. For `"file"`, set `video.src` first; tracking
+  starts the video from its current position. Don't seek while it's running.
+- `options.onEnd`: called once when a video file finishes, after any final rep. Still call
+  `stop()` afterwards.
 - `options.mock`: `true` sends fake reps instead of running the real brain.
+
+The brain also exports `checkForm(rep, details)` and `loadClassifier()`. The Accuracy page uses them
+to score saved labeled reps; the app doesn't need them to track a set.
 
 ## Rep (sent to `onRep`)
 
@@ -49,7 +55,18 @@ stop(); // ends tracking, releases the camera
 | `maxTorsoLean` | number | Most forward lean, degrees from vertical |
 | `hitDepth` | boolean | Hip went below knee |
 | `ruleFlags` | string[] | Any of `"shallow"`, `"excessive_lean"`, `"no_lockout"`. Empty = clean rep |
-| `classifier` | object or `null` | `null` until the trained model exists |
+| `classifier` | object or `null` | `{ label: "good" \| "bad", confidence: 0.5 to 1 }`. `null` if there is no trained model yet |
+
+Rule flags (`web/src/brain/formRules.js`):
+
+| Flag | Raised when |
+|---|---|
+| `shallow` | the hip never went below the knee (`hitDepth` is false) |
+| `excessive_lean` | `maxTorsoLean` is over 45° (a starting guess; tune on real footage) |
+| `no_lockout` | the lifter went back down without standing up. Not raised for the last rep of a video that ends mid-rep, since there's no way to tell |
+
+The classifier reads `minKneeAngle`, `maxTorsoLean`, `hitDepth` and `durationMs` from the model file's
+feature list, so it can only use fields that are in the Rep.
 
 ## Frame (sent to `onFrame`)
 

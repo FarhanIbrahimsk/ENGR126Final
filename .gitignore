@@ -15,3 +15,8 @@ data/videos/
 __pycache__/
 .venv/
 .ipynb_checkpoints/
+
+# Invented test data and local training output
+ml/fake_labels.csv
+ml/fake_model*.json
+ml/results.json
