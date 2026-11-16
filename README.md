@@ -12,7 +12,7 @@ checks squat form, and saves your workouts to a dashboard. No extra hardware.
 | `web/src/brain/` | Farhan | Camera + pose tracking, rep counting, form checks, classifier |
 | `web/src/app/` | Jacob | Everything the user sees: pages, dashboard, saving workouts, labeler |
 | `web/src/shared/` | Both | The rep data format + mock data. Change only together. |
-| `ml/` | Farhan | Python notebook for training the form classifier |
+| `ml/` | Farhan | Python script for training the form classifier |
 | `docs/` | Both | Data contract, AI usage log, task list |
 
 The two halves connect through **one function** (`startTracking` in `web/src/brain/index.js`)
@@ -29,6 +29,19 @@ npm run dev
 
 Then open the URL it prints. Allow camera access when asked.
 
+```bash
+npm test        # unit tests for form rules, classifier loader, rep counter, accuracy math
+npm run build   # production build into web/dist
+```
+
+Pages: Live Set, Dashboard, History, Labeler (label recorded reps), Accuracy (rep-count and
+form-check accuracy on recorded videos). Add `?mock` to the URL to try the app without a camera.
+
+## Deploy
+
+Pushes to `main` build and publish to GitHub Pages (`.github/workflows/deploy.yml`). One-time setup:
+repo Settings, Pages, Source: **GitHub Actions**. Camera access needs HTTPS, which Pages provides.
+
 ## Workflow
 
 - `main` should always run.
@@ -37,3 +50,4 @@ Then open the URL it prints. Allow camera access when asked.
 - Tasks live in GitHub Issues (labels: `brain`, `app`, `shared`, `ml`). Full list: `docs/issues.md`.
 - Training videos go in the shared Google Drive folder, **not** in git. Only `data/labels.csv` is committed.
 - Log AI usage as you go in `docs/ai-log.md` — it's material for the report.
+- Recording videos: `docs/recording-guide.md`. Demo: `docs/demo-script.md`. Report: `docs/report-outline.md`.

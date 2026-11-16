@@ -26,6 +26,9 @@ stop(); // ends tracking, releases the camera
   `stop()` afterwards.
 - `options.mock`: `true` sends fake reps instead of running the real brain.
 
+The brain also exports `checkForm(rep, details)` and `loadClassifier()`. The Accuracy page uses them
+to score saved labeled reps; the app doesn't need them to track a set.
+
 ## Rep (sent to `onRep`)
 
 ```json
@@ -52,7 +55,18 @@ stop(); // ends tracking, releases the camera
 | `maxTorsoLean` | number | Most forward lean, degrees from vertical |
 | `hitDepth` | boolean | Hip went below knee |
 | `ruleFlags` | string[] | Any of `"shallow"`, `"excessive_lean"`, `"no_lockout"`. Empty = clean rep |
-| `classifier` | object or `null` | `null` until the trained model exists |
+| `classifier` | object or `null` | `{ label: "good" \| "bad", confidence: 0.5 to 1 }`. `null` if there is no trained model yet |
+
+Rule flags (`web/src/brain/formRules.js`):
+
+| Flag | Raised when |
+|---|---|
+| `shallow` | the hip never went below the knee (`hitDepth` is false) |
+| `excessive_lean` | `maxTorsoLean` is over 45° (a starting guess; tune on real footage) |
+| `no_lockout` | the lifter went back down without standing up. Not raised for the last rep of a video that ends mid-rep, since there's no way to tell |
+
+The classifier reads `minKneeAngle`, `maxTorsoLean`, `hitDepth` and `durationMs` from the model file's
+feature list, so it can only use fields that are in the Rep.
 
 ## Frame (sent to `onFrame`)
 
