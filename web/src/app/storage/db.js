@@ -1,20 +1,30 @@
-// Saving sets and sessions in the browser (IndexedDB).
-// Shapes are in docs/data-contract.md under "Set and session".
+// Saving sets, sessions and labeled training reps in the browser (IndexedDB).
+// Set and session shapes are in docs/data-contract.md under "Set and session".
 import { openDB } from "idb";
 
 const DB_NAME = "rep-tracker";
 const SESSIONS = "sessions";
+const LABELED_REPS = "labeledReps";
 
 let dbPromise = null;
 
 function getDb() {
-  dbPromise ??= openDB(DB_NAME, 1, {
-    upgrade(db) {
-      db.createObjectStore(SESSIONS, { keyPath: "date" });
+  dbPromise ??= openDB(DB_NAME, 2, {
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) db.createObjectStore(SESSIONS, { keyPath: "date" });
+      if (oldVersion < 2) db.createObjectStore(LABELED_REPS, { keyPath: ["video", "rep"] });
+    },
+    // Another tab needs a newer version: let go so its upgrade isn't stuck waiting on this one.
+    blocking(_current, _blocked, event) {
+      event.target.close();
+      dbPromise = null;
     },
   });
   return dbPromise;
 }
+
+// Every [video, rep] key for one video. An empty array sorts after any rep number.
+const videoRange = (video) => IDBKeyRange.bound([video], [video, []]);
 
 // The local calendar day a set belongs to, e.g. "2026-11-03". Local rather than UTC so an
 // evening workout doesn't land on the next day.
@@ -57,4 +67,32 @@ export async function getSessions() {
 export async function getSession(date) {
   const db = await getDb();
   return (await db.get(SESSIONS, date)) ?? null;
+}
+
+/**
+ * Replace everything saved for one video. Pass an empty list to remove the video.
+ * @param {string} video file name
+ * @param {object[]} reps labeled rep records, each with `video` and `rep`
+ */
+export async function saveLabeledReps(video, reps) {
+  const db = await getDb();
+  const tx = db.transaction(LABELED_REPS, "readwrite");
+  await tx.store.delete(videoRange(video));
+  await Promise.all(reps.map((r) => tx.store.put(r)));
+  await tx.done;
+}
+
+/** Save one labeled rep record, replacing the same video and rep number. */
+export async function saveLabeledRep(record) {
+  const db = await getDb();
+  await db.put(LABELED_REPS, record);
+}
+
+/**
+ * @param {string} [video] file name; leave out for every video
+ * @returns {Promise<object[]>} labeled rep records in video, then rep order
+ */
+export async function getLabeledReps(video) {
+  const db = await getDb();
+  return db.getAll(LABELED_REPS, video === undefined ? undefined : videoRange(video));
 }

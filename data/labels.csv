@@ -1,1 +1,1 @@
-video,rep,person,label,fault
+video,rep,person,label,fault,minKneeAngle,maxTorsoLean,hitDepth,durationMs
