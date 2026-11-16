@@ -13,7 +13,7 @@ export function renderDashboard(page) {
         page.innerHTML = `<h1>Dashboard</h1><p>No workouts yet. <a href="#/live">Record a set</a> to see it here.</p>`;
         return;
       }
-      page.innerHTML = `<h1>Dashboard</h1><p>${escapeHtml(formatSessionDate(latest.date))}</p>${renderSets(latest)}`;
+      page.innerHTML = `<h1>Dashboard</h1><p class="eyebrow">${escapeHtml(formatSessionDate(latest.date))}</p>${renderSets(latest)}`;
     })
     .catch((err) => {
       console.error(err);

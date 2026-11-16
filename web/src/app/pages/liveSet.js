@@ -2,51 +2,114 @@
 // Add ?mock to the URL for fake reps with no camera, e.g. http://localhost:5173/?mock#/live
 import { startTracking, drawSkeleton } from "../../brain/index.js";
 import { saveSet } from "../storage/db.js";
+import { FLAG_LABELS, escapeHtml } from "../components/setDetails.js";
 
 const useMock = new URLSearchParams(location.search).has("mock");
+const BANNER_SECONDS = 4;
+const TRACKING_LOST_MS = 1500; // no pose for this long while a set is running
 
-function repText(rep) {
-  const stats = `knee ${rep.minKneeAngle}°, lean ${rep.maxTorsoLean}°, depth ${rep.hitDepth ? "yes" : "no"}, ${(rep.durationMs / 1000).toFixed(1)}s`;
-  const flags = rep.ruleFlags.length ? ` (${rep.ruleFlags.join(", ")})` : "";
-  return `Rep ${rep.rep}: ${stats}${flags}`;
+function repItem(rep) {
+  const flagged = rep.ruleFlags.length > 0 || rep.classifier?.label === "bad";
+  const tags = rep.ruleFlags.map((f) => FLAG_LABELS[f] ?? f);
+  if (rep.classifier) tags.push(`Model: ${rep.classifier.label} ${Math.round(rep.classifier.confidence * 100)}%`);
+  const li = document.createElement("li");
+  li.className = flagged ? "rep-item flagged" : "rep-item";
+  li.innerHTML = `
+    <span class="rep-num">${String(rep.rep).padStart(2, "0")}</span>
+    <span class="rep-stats">KNEE ${rep.minKneeAngle}° · LEAN ${rep.maxTorsoLean}° · ${(rep.durationMs / 1000).toFixed(1)}s</span>
+    <span class="rep-tags">${tags.length ? tags.map((t) => `<span class="chip bad">${escapeHtml(t)}</span>`).join("") : `<span class="chip good">Clean</span>`}</span>`;
+  return li;
+}
+
+function bannerFor(rep) {
+  const faults = rep.ruleFlags.map((f) => FLAG_LABELS[f] ?? f);
+  if (rep.classifier?.label === "bad") faults.push("Model flags form");
+  return faults.length
+    ? { kind: "bad", text: `Rep ${rep.rep}: ${faults.join(", ")}` }
+    : { kind: "good", text: `Rep ${rep.rep}: Clean` };
 }
 
 export function renderLiveSet(page) {
   page.innerHTML = `
-    <h1>Live Set</h1>
-    <div class="stage">
+    <h1 class="sr-only">Live Set</h1>
+    <div class="stage viewfinder">
       <video id="video" autoplay playsinline muted></video>
       <canvas id="overlay"></canvas>
+      <div class="hud-counter" aria-live="polite">
+        <span class="hud-label">Reps</span>
+        <strong id="count" class="num">0</strong>
+      </div>
+      <div class="hud-phase" id="phase">Idle</div>
     </div>
-    <div id="readout" class="readout"></div>
-    <div class="controls">
-      <label>Weight (lb) <input id="weight" type="number" min="0" step="any" inputmode="decimal" required /></label>
-      <button id="toggle">Start set</button>
-      <span>Reps: <strong id="count">0</strong></span>
+
+    <div class="telemetry" aria-label="Live angles">
+      <div class="tile"><span class="tile-label">Knee</span><span id="knee" class="tile-value num">--</span></div>
+      <div class="tile"><span class="tile-label">Lean</span><span id="lean" class="tile-value num">--</span></div>
     </div>
-    <p id="status" role="status"></p>
-    <ol id="reps"></ol>
+
+    <ol id="reps" class="rep-list"></ol>
+
+    <div class="dock">
+      <div id="banner" class="banner" role="status" hidden></div>
+      <p id="status" role="status" class="dock-status"></p>
+      <div class="action-bar">
+        <label class="weight-field">
+          <span>Weight (lb)</span>
+          <input id="weight" type="number" min="0" step="any" inputmode="decimal" required />
+        </label>
+        <button id="toggle" type="button" class="primary">Start set</button>
+      </div>
+    </div>
   `;
 
   const $ = (selector) => page.querySelector(selector);
   const video = $("#video");
   const canvas = $("#overlay");
-  const readout = $("#readout");
   const weight = $("#weight");
   const button = $("#toggle");
   const count = $("#count");
   const status = $("#status");
   const list = $("#reps");
+  const banner = $("#banner");
+  const phase = $("#phase");
+  const knee = $("#knee");
+  const lean = $("#lean");
 
   let stopTracking = null;
   let currentSet = null;
   let leftPage = false;
+  let lastFrameAt = 0;
+  let bannerTimer = null;
+  let lostTimer = null;
+  let trackingLost = false;
+
+  const showBanner = (kind, text, seconds = BANNER_SECONDS) => {
+    clearTimeout(bannerTimer);
+    banner.className = `banner ${kind}`;
+    banner.textContent = text;
+    banner.hidden = false;
+    if (seconds) bannerTimer = setTimeout(() => (banner.hidden = true), seconds * 1000);
+  };
+
+  const resetReadout = () => {
+    knee.textContent = "--";
+    lean.textContent = "--";
+    phase.textContent = "Idle";
+    canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+  };
 
   const onFrame = (frame) => {
+    lastFrameAt = performance.now();
+    if (trackingLost) {
+      trackingLost = false;
+      banner.hidden = true;
+    }
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     drawSkeleton(canvas, frame.landmarks);
-    readout.textContent = `knee ${Math.round(frame.kneeAngle)}°  lean ${Math.round(frame.torsoLean)}°  ${frame.phase}`;
+    knee.textContent = `${Math.round(frame.kneeAngle)}°`;
+    lean.textContent = `${Math.round(frame.torsoLean)}°`;
+    phase.textContent = frame.phase;
   };
 
   const startSet = async () => {
@@ -55,16 +118,17 @@ export function renderLiveSet(page) {
 
     button.disabled = true;
     weight.disabled = true;
-    status.textContent = "Starting...";
+    status.textContent = "Starting tracker...";
     list.innerHTML = "";
     count.textContent = "0";
+    banner.hidden = true;
 
     const onRep = (rep) => {
       set.reps.push(rep);
       count.textContent = set.reps.length;
-      const li = document.createElement("li");
-      li.textContent = repText(rep);
-      list.appendChild(li);
+      list.prepend(repItem(rep));
+      const { kind, text } = bannerFor(rep);
+      showBanner(kind, text);
     };
 
     try {
@@ -76,10 +140,21 @@ export function renderLiveSet(page) {
       stopTracking = stop;
       currentSet = set;
       button.textContent = "Stop set";
+      button.classList.remove("primary");
+      button.classList.add("stop");
       status.textContent = "";
+      lastFrameAt = performance.now();
+      if (!useMock) {
+        lostTimer = setInterval(() => {
+          if (performance.now() - lastFrameAt > TRACKING_LOST_MS && !trackingLost) {
+            trackingLost = true;
+            showBanner("bad", "Tracking lost: re-enter camera frame", 0);
+          }
+        }, 500);
+      }
     } catch (err) {
       console.error(err);
-      status.textContent = `Couldn't start tracking: ${err.message}`;
+      status.textContent = `Tracker failed to start: ${err.message}`;
       weight.disabled = false;
     }
     button.disabled = false;
@@ -90,22 +165,27 @@ export function renderLiveSet(page) {
     stopTracking();
     stopTracking = null;
     currentSet = null;
+    clearInterval(lostTimer);
+    clearTimeout(bannerTimer);
+    trackingLost = false;
+    banner.hidden = true;
 
     button.textContent = "Start set";
+    button.classList.remove("stop");
+    button.classList.add("primary");
     weight.disabled = false;
-    readout.textContent = "";
-    canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    resetReadout();
 
     if (!set.reps.length) {
-      status.textContent = "No reps counted, so nothing was saved.";
+      status.textContent = "No reps counted. Set not saved.";
       return;
     }
     try {
       await saveSet(set);
-      status.textContent = `Saved ${set.reps.length} reps at ${set.weightLbs} lb.`;
+      status.textContent = `Saved: ${set.reps.length} reps at ${set.weightLbs} lb.`;
     } catch (err) {
       console.error(err);
-      status.textContent = `Couldn't save this set: ${err.message}`;
+      status.textContent = `Save failed: ${err.message}`;
     }
   };
 
@@ -113,6 +193,8 @@ export function renderLiveSet(page) {
 
   return () => {
     leftPage = true;
+    clearInterval(lostTimer);
+    clearTimeout(bannerTimer);
     if (currentSet) finishSet();
   };
 }

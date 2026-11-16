@@ -73,6 +73,7 @@ export function drawSkeleton(canvas, landmarks) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (!landmarks) return;
   const utils = new DrawingUtils(ctx);
-  utils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, { color: "#00e676", lineWidth: 3 });
-  utils.drawLandmarks(landmarks, { color: "#ffffff", fillColor: "#ff1744", radius: 3 });
+  // Telemetry cyan at 40% opacity, so the body stays visible under the overlay.
+  utils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, { color: "rgba(0, 229, 255, 0.4)", lineWidth: 3 });
+  utils.drawLandmarks(landmarks, { color: "rgba(0, 229, 255, 0.4)", fillColor: "rgba(0, 229, 255, 0.4)", radius: 3 });
 }

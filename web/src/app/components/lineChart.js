@@ -2,7 +2,7 @@
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const HEIGHT = 180;
-const MARGIN = { top: 12, right: 48, bottom: 24, left: 40 };
+const MARGIN = { top: 12, right: 60, bottom: 24, left: 40 };
 const MAX_MARKERS = 20; // past this, only the latest point gets a dot
 
 function svgEl(tag, attrs = {}, text) {

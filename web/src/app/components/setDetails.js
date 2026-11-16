@@ -1,6 +1,6 @@
 // HTML for one saved set: a summary plus a per-rep table. Used by Dashboard and History.
 
-const FLAG_LABELS = {
+export const FLAG_LABELS = {
   shallow: "Shallow",
   excessive_lean: "Too much lean",
   no_lockout: "No lockout",
@@ -42,17 +42,19 @@ function stat(label, value) {
 }
 
 function renderRep(rep, showClassifier) {
-  const flags = rep.ruleFlags.map((f) => escapeHtml(FLAG_LABELS[f] ?? f)).join(", ") || "None";
+  const flags =
+    rep.ruleFlags.map((f) => `<span class="chip bad">${escapeHtml(FLAG_LABELS[f] ?? f)}</span>`).join("") ||
+    `<span class="muted">None</span>`;
   const classifier = rep.classifier
-    ? `${escapeHtml(rep.classifier.label)} (${Math.round(rep.classifier.confidence * 100)}%)`
+    ? `<span class="chip ${rep.classifier.label === "bad" ? "bad" : "good"}">${escapeHtml(rep.classifier.label)} ${Math.round(rep.classifier.confidence * 100)}%</span>`
     : "-";
   return `
     <tr>
-      <td>${rep.rep}</td>
-      <td>${rep.minKneeAngle}°</td>
-      <td>${rep.maxTorsoLean}°</td>
+      <td class="num">${rep.rep}</td>
+      <td class="num">${rep.minKneeAngle}°</td>
+      <td class="num">${rep.maxTorsoLean}°</td>
       <td>${rep.hitDepth ? "Yes" : "No"}</td>
-      <td>${seconds(rep.durationMs)}</td>
+      <td class="num">${seconds(rep.durationMs)}</td>
       <td>${flags}</td>
       ${showClassifier ? `<td>${classifier}</td>` : ""}
     </tr>`;
@@ -67,7 +69,7 @@ export function renderSet(set, number) {
   const s = summarize(set.reps);
   const showClassifier = set.reps.some((r) => r.classifier);
   return `
-    <section class="set">
+    <section class="set ${s.flagged ? "set-flagged" : "set-clean"}">
       ${heading}
       <div class="stats">
         ${stat("Reps", s.count)}
