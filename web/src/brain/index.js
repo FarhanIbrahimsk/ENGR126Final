@@ -19,7 +19,8 @@ export { loadClassifier } from "./classifier.js";
  * @param {HTMLVideoElement} video
  * @param {{ lift?: "squat"|"pushup", mode?: "live"|"file", mock?: boolean,
  *           onFrame?: (frame: object) => void, onRep?: (rep: object) => void,
- *           onEnd?: () => void }} options  onEnd fires when a video file finishes
+ *           onEnd?: () => void, isFlipped?: () => boolean }} options  onEnd fires when a video file
+ *   finishes; isFlipped is asked each frame whether the video is upside down
  * @returns {Promise<() => void>} call it to stop tracking
  */
 export async function startTracking(video, options = {}) {
@@ -29,7 +30,7 @@ export async function startTracking(video, options = {}) {
 }
 
 // Real pipeline: pose -> angles -> rep counter -> form rules + classifier.
-async function startReal(video, { lift = "squat", mode = "live", onFrame = () => {}, onRep = () => {}, onEnd = () => {} }) {
+async function startReal(video, { lift = "squat", mode = "live", onFrame = () => {}, onRep = () => {}, onEnd = () => {}, isFlipped = () => false }) {
   const isFile = mode === "file";
   const landmarker = await createPoseLandmarker();
   const classify = await loadClassifier();
@@ -65,7 +66,7 @@ async function startReal(video, { lift = "squat", mode = "live", onFrame = () =>
     if (video.currentTime !== lastVideoTime) {
       lastVideoTime = video.currentTime;
       const now = performance.now();
-      const raw = detect(landmarker, video, now);
+      const raw = detect(landmarker, video, now, isFlipped());
       if (raw) {
         const landmarks = smooth(raw, now);
         const aspect = video.videoWidth / video.videoHeight;

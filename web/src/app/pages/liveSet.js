@@ -8,6 +8,7 @@ import { createVoice, phraseFor, TRACKING_LOST_PHRASE } from "../audio/voice.js"
 const useMock = new URLSearchParams(location.search).has("mock");
 const BANNER_SECONDS = 4;
 const TRACKING_LOST_MS = 1500; // no pose for this long while a set is running
+const FLIP_KEY = "flipCamera";
 
 const isSuccessful = (rep) => !rep.ruleFlags.length && rep.classifier?.label !== "bad";
 
@@ -45,6 +46,7 @@ export function renderLiveSet(page) {
         <strong id="count" class="num">0</strong>
       </div>
       <div class="hud-phase" id="phase">Idle</div>
+      <button id="flip" type="button" class="hud-flip" aria-pressed="false">Flip camera</button>
       <button id="sound" type="button" class="hud-sound"></button>
     </div>
 
@@ -86,6 +88,7 @@ export function renderLiveSet(page) {
   const phase = $("#phase");
   const angle = $("#angle");
   const tilt = $("#tilt");
+  const flip = $("#flip");
   const sound = $("#sound");
   const voice = createVoice();
 
@@ -125,6 +128,19 @@ export function renderLiveSet(page) {
     voice.setEnabled(!voice.isEnabled());
     showSound();
     voice.say("Voice on"); // silent when just turned off
+  };
+
+  // For a phone mounted so the picture comes in upside down. Remembered for next time.
+  let flipped = localStorage.getItem(FLIP_KEY) === "true";
+  const showFlip = () => {
+    flip.setAttribute("aria-pressed", flipped);
+    video.classList.toggle("flipped", flipped);
+  };
+  showFlip();
+  flip.onclick = () => {
+    flipped = !flipped;
+    localStorage.setItem(FLIP_KEY, flipped);
+    showFlip();
   };
 
   const resetReadout = () => {
@@ -180,7 +196,7 @@ export function renderLiveSet(page) {
     };
 
     try {
-      const stop = await startTracking(video, { lift: set.lift, mock: useMock, onFrame, onRep });
+      const stop = await startTracking(video, { lift: set.lift, mock: useMock, onFrame, onRep, isFlipped: () => flipped });
       if (leftPage) {
         stop(); // Left while the model was loading; don't keep the camera on.
         return;

@@ -5,6 +5,7 @@ ENGR 126 final project — Farhan Shaik & Jacob Khalatbari.
 A browser app that watches you lift through your phone or laptop camera, counts reps,
 checks squat and pushup form, and saves your workouts to a dashboard. No extra hardware.
 Film from the side; for pushups, put the phone low with your whole body in frame.
+If the picture is upside down, press **Flip camera** on Live Set.
 
 ## Who owns what
 

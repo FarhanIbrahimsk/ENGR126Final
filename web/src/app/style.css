@@ -257,6 +257,11 @@ video {
   object-fit: contain;
 }
 
+/* The overlay isn't turned: its landmarks already come from the turned frame. */
+.viewfinder video.flipped {
+  transform: rotate(180deg);
+}
+
 .hud-counter {
   position: absolute;
   top: 12px;
@@ -300,6 +305,21 @@ video {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--cyan);
+}
+
+.hud-flip {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  background: rgba(19, 22, 31, 0.8);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.hud-flip[aria-pressed="true"] {
+  color: var(--cyan);
+  border-color: var(--cyan);
 }
 
 .hud-sound {

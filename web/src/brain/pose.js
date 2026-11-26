@@ -45,21 +45,36 @@ export async function openCamera(video) {
 }
 
 let lastTimestamp = -1;
+let flipCanvas = null;
+
+// A copy of the current frame turned 180 degrees.
+function turnedFrame(video) {
+  flipCanvas ??= document.createElement("canvas");
+  flipCanvas.width = video.videoWidth; // setting the size also clears the last rotation
+  flipCanvas.height = video.videoHeight;
+  const ctx = flipCanvas.getContext("2d");
+  ctx.translate(flipCanvas.width, flipCanvas.height);
+  ctx.rotate(Math.PI);
+  ctx.drawImage(video, 0, 0);
+  return flipCanvas;
+}
 
 /**
  * Run pose detection on the current video frame.
  * @param {PoseLandmarker} landmarker
  * @param {HTMLVideoElement} video
  * @param {number} timestampMs e.g. performance.now()
+ * @param {boolean} [flipped] the video is upside down, so turn it before detecting. Landmarks
+ *   then match the turned picture.
  * @returns {{x:number,y:number,z:number,visibility:number}[] | null}
  *   33 landmarks, or null if no person (or no new frame yet)
  */
-export function detect(landmarker, video, timestampMs) {
+export function detect(landmarker, video, timestampMs, flipped = false) {
   if (video.readyState < 2) return null;
   // MediaPipe requires strictly increasing timestamps.
   if (timestampMs <= lastTimestamp) return null;
   lastTimestamp = timestampMs;
-  const result = landmarker.detectForVideo(video, timestampMs);
+  const result = landmarker.detectForVideo(flipped ? turnedFrame(video) : video, timestampMs);
   return result.landmarks[0] ?? null;
 }
 
