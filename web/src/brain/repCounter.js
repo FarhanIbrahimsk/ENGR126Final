@@ -10,7 +10,7 @@ const MIN_ASCENT = 25; // must rise this far from the bottom before going back d
 // It is dropped completely: not counted, not numbered, never saved.
 const MIN_REP_MS = 500;
 const MAX_SQUAT_LEAN = 75; // degrees from vertical
-const PUSHUP_LEAN = { min: 55, max: 125 }; // 90 is a level body
+const PUSHUP_LEAN = { min: 40, max: 140 }; // 90 is a level body
 const LEAVE_MS = 500; // out of the pushup position this long ends it; shorter is treated as jitter
 
 // Each lift follows one joint angle through the same up-down-up cycle.
@@ -31,11 +31,12 @@ const LIFT_SETTINGS = {
   pushup: {
     angle: (f) => f.elbowAngle,
     tilt: (f) => f.bodyBend,
-    top: 150,
-    start: 140,
-    bottom: 100,
-    minDepth: 120,
-    deepEnough: (f) => f.elbowAngle <= 100,
+    // Loose on purpose: from a phone camera, straight arms often read well under 180.
+    top: 140,
+    start: 135,
+    bottom: 110,
+    minDepth: 130,
+    deepEnough: (f) => f.elbowAngle <= 110,
     // Arm movements only count with the body close to level, so standing or kneeling upright doesn't.
     inPosition: (f) => f.torsoLean >= PUSHUP_LEAN.min && f.torsoLean <= PUSHUP_LEAN.max,
     // Getting down into position bends the arms too, so wait until they've been straight.

@@ -9,7 +9,7 @@
 export const THRESHOLDS = {
   depthKneeAngle: 100, // a knee bent to this or less counts as deep enough
   maxTorsoLean: 45, // degrees from vertical
-  maxBodyBend: 25, // degrees away from a straight shoulder-hip-ankle line
+  maxBodyBend: 35, // degrees away from a straight shoulder-hip-ankle line
 };
 
 /**

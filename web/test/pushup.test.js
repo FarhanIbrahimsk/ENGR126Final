@@ -36,18 +36,25 @@ test("a full pushup counts once and is clean", () => {
 
 test("shallow, sagging and no-lockout pushups are flagged", () => {
   const shallow = session();
-  shallow.feed([...TOP, 135, 120, 110, 130, 170]);
+  shallow.feed([...TOP, 130, 125, 120, 135, 170]);
   assert.deepEqual(shallow.reps[0].ruleFlags, ["shallow"]);
 
   const sagging = session();
   sagging.feed(TOP);
-  sagging.feed(REP, { bodyBend: 35 });
+  sagging.feed(REP, { bodyBend: 45 });
   assert.deepEqual(sagging.reps[0].ruleFlags, ["body_bend"]);
 
   const noLockout = session();
-  noLockout.feed([...TOP, 130, 90, 80, 110, 135, 100, 80, 110, 170]);
+  noLockout.feed([...TOP, 130, 90, 80, 110, 130, 100, 80, 110, 170]);
   assert.equal(noLockout.reps.length, 2);
   assert.deepEqual(noLockout.reps[0].ruleFlags, ["no_lockout"]);
+});
+
+test("a pushup with soft lockout and a tilted body still counts", () => {
+  const { reps, feed } = session();
+  feed([143, 130, 108, 125, 143], { torsoLean: 50, bodyBend: 30 });
+  assert.equal(reps.length, 1);
+  assert.deepEqual(reps[0].ruleFlags, []);
 });
 
 test("arm bends while upright are not pushups", () => {
@@ -90,7 +97,7 @@ test("elbow angle and body bend come from the visible side", () => {
   assert.equal(Math.round(elbowAngle(landmarks)), 90);
   assert.equal(Math.round(bodyBend(landmarks)), 0);
   set(23, 0.5, 0.65); // sagging hips
-  assert.ok(bodyBend(landmarks) > 25);
+  assert.ok(bodyBend(landmarks) > 35);
 });
 
 test("mock pushup reps match the contract", () => {
