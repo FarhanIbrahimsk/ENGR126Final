@@ -55,14 +55,14 @@ to score saved labeled reps; the app doesn't need them to track a set.
 | `maxTorsoLean` | number | Squat only. Most forward lean, degrees from vertical |
 | `minElbowAngle` | number | Pushup only. Smallest elbow angle in degrees (lower = deeper) |
 | `maxBodyBend` | number | Pushup only. Furthest shoulder-hip-ankle got from a straight line, degrees |
-| `hitDepth` | boolean | Squat: hip went below knee. Pushup: elbow bent to 100° or less |
+| `hitDepth` | boolean | Squat: hip went below knee. Pushup: elbow bent to 110° or less |
 | `ruleFlags` | string[] | Any of `"shallow"`, `"excessive_lean"`, `"body_bend"`, `"no_lockout"`. Empty = clean rep |
 | `classifier` | object or `null` | `{ label: "good" \| "bad", confidence: 0.5 to 1 }`. `null` if there is no trained model yet |
 
 Movements shorter than 0.5s, or with torso lean over 75°, are not reps (walking, setting up the phone).
 The brain drops them, so `onRep` never sees them.
 
-Pushups only count while the body is near level (torso 55° to 125° from vertical), and only after the arms
+Pushups only count while the body is near level (torso 40° to 140° from vertical), and only after the arms
 have been straight once, so getting into position isn't a rep.
 
 The classifier is squat only; pushup reps always have `classifier: null`.
@@ -72,7 +72,7 @@ Rule flags (`web/src/brain/formRules.js`):
 | Flag | Raised when |
 |---|---|
 | `shallow` | squat: the hip never went below the knee (`hitDepth` is false) **and** `minKneeAngle` is over 100°. Pushup: `hitDepth` is false |
-| `body_bend` | pushup only: `maxBodyBend` is over 25° (hips sagging or piked) |
+| `body_bend` | pushup only: `maxBodyBend` is over 35° (hips sagging or piked) |
 | `excessive_lean` | `maxTorsoLean` is over 45° (a starting guess; tune on real footage) |
 | `no_lockout` | the lifter went back down without standing up. Not raised for the last rep of a video that ends mid-rep, since there's no way to tell |
 
