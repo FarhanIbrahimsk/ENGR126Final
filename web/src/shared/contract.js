@@ -1,8 +1,8 @@
 // The rep format both halves agree on. See docs/data-contract.md.
 // Change this only together, in the same PR as the doc.
 
-export const LIFTS = ["squat"];
-export const RULE_FLAGS = ["shallow", "excessive_lean", "no_lockout"];
+export const LIFTS = ["squat", "pushup"];
+export const RULE_FLAGS = ["shallow", "excessive_lean", "body_bend", "no_lockout"];
 export const PHASES = ["standing", "descending", "bottom", "ascending"];
 
 /**
@@ -15,8 +15,13 @@ export function validateRep(rep) {
   num("rep");
   num("startTime");
   num("durationMs");
-  num("minKneeAngle");
-  num("maxTorsoLean");
+  if (rep.lift === "pushup") {
+    num("minElbowAngle");
+    num("maxBodyBend");
+  } else {
+    num("minKneeAngle");
+    num("maxTorsoLean");
+  }
   if (!LIFTS.includes(rep.lift)) problems.push(`unknown lift: ${rep.lift}`);
   if (typeof rep.hitDepth !== "boolean") problems.push("hitDepth should be a boolean");
   if (!Array.isArray(rep.ruleFlags)) problems.push("ruleFlags should be an array");

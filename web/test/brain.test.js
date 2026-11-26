@@ -18,7 +18,7 @@ test("each rule flags on its own, in contract order", () => {
   assert.deepEqual(checkForm(rep({ maxTorsoLean: 60 }), { lockedOut: true }), ["excessive_lean"]);
   assert.deepEqual(checkForm(rep(), { lockedOut: false }), ["no_lockout"]);
   const all = checkForm(rep({ hitDepth: false, maxTorsoLean: 60 }), { lockedOut: false });
-  assert.deepEqual(all, RULE_FLAGS);
+  assert.deepEqual(all, RULE_FLAGS.filter((f) => f !== "body_bend")); // body_bend is pushups only
 });
 
 test("lean exactly at the limit is fine, and unknown lockout is not a fault", () => {

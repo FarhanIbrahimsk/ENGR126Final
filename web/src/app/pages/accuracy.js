@@ -41,6 +41,7 @@ export function renderAccuracy(page) {
     <h2 class="section-title">Rep counts</h2>
     <p>Pick videos, enter how many reps each really has, then run them. Keep this tab visible while they play.</p>
     <div class="controls">
+      <label>Exercise <select id="lift"><option value="squat">Squat</option><option value="pushup">Pushup</option></select></label>
       <label>Videos <input id="files" type="file" accept="video/*" multiple /></label>
       <button id="run" type="button" disabled>Run all</button>
       <button id="export" type="button" disabled>Export accuracy.csv</button>
@@ -54,7 +55,7 @@ export function renderAccuracy(page) {
     <p id="count-summary"></p>
 
     <h2 class="section-title">Form checks</h2>
-    <p>Uses the reps you labeled in the Labeler. Nothing is replayed, so this is instant.</p>
+    <p>Squats only. Uses the reps you labeled in the Labeler. Nothing is replayed, so this is instant.</p>
     <button id="form" type="button">Check against my labels</button>
     <div id="form-results"></div>
   `;
@@ -141,6 +142,7 @@ export function renderAccuracy(page) {
       video.src = url;
       abort = () => finish(null);
       startTracking(video, {
+        lift: $("#lift").value,
         mode: "file",
         mock: false,
         onFrame: (frame) => {
@@ -168,6 +170,7 @@ export function renderAccuracy(page) {
     running = true;
     runButton.textContent = "Stop";
     $("#files").disabled = true;
+    $("#lift").disabled = true;
     try {
       for (let i = 0; i < rows.length && !leftPage; i++) {
         rows[i].counted = null;
@@ -189,6 +192,7 @@ export function renderAccuracy(page) {
     if (leftPage) return;
     runButton.textContent = "Run all";
     $("#files").disabled = false;
+    $("#lift").disabled = false;
   };
 
   $("#files").addEventListener("change", (e) => {

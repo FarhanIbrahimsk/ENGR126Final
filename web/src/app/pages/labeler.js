@@ -7,7 +7,9 @@ import { FLAG_LABELS } from "../components/setDetails.js";
 const CSV_COLUMNS = ["video", "rep", "person", "label", "fault", "minKneeAngle", "maxTorsoLean", "hitDepth", "durationMs"];
 const WATCH_PADDING_SEC = 0.5; // show a little either side of each rep
 
-const FAULT_OPTIONS = [...Object.entries(FLAG_LABELS), ["other", "Other"]];
+// The Labeler is for squats only, so leave out the pushup fault.
+const SQUAT_FAULTS = Object.entries(FLAG_LABELS).filter(([flag]) => flag !== "body_bend");
+const FAULT_OPTIONS = [...SQUAT_FAULTS, ["other", "Other"]];
 
 function csvCell(value) {
   const text = String(value);

@@ -48,23 +48,31 @@ to score saved labeled reps; the app doesn't need them to track a set.
 | Field | Type | Meaning |
 |---|---|---|
 | `rep` | number | Rep number within the set, starting at 1 |
-| `lift` | string | `"squat"` for now |
+| `lift` | string | `"squat"` or `"pushup"` |
 | `startTime` | number | When the rep started, ms since epoch |
 | `durationMs` | number | How long the rep took |
-| `minKneeAngle` | number | Smallest knee angle in degrees (lower = deeper) |
-| `maxTorsoLean` | number | Most forward lean, degrees from vertical |
-| `hitDepth` | boolean | Hip went below knee |
-| `ruleFlags` | string[] | Any of `"shallow"`, `"excessive_lean"`, `"no_lockout"`. Empty = clean rep |
+| `minKneeAngle` | number | Squat only. Smallest knee angle in degrees (lower = deeper) |
+| `maxTorsoLean` | number | Squat only. Most forward lean, degrees from vertical |
+| `minElbowAngle` | number | Pushup only. Smallest elbow angle in degrees (lower = deeper) |
+| `maxBodyBend` | number | Pushup only. Furthest shoulder-hip-ankle got from a straight line, degrees |
+| `hitDepth` | boolean | Squat: hip went below knee. Pushup: elbow bent to 100° or less |
+| `ruleFlags` | string[] | Any of `"shallow"`, `"excessive_lean"`, `"body_bend"`, `"no_lockout"`. Empty = clean rep |
 | `classifier` | object or `null` | `{ label: "good" \| "bad", confidence: 0.5 to 1 }`. `null` if there is no trained model yet |
 
 Movements shorter than 0.5s, or with torso lean over 75°, are not reps (walking, setting up the phone).
 The brain drops them, so `onRep` never sees them.
 
+Pushups only count while the body is near level (torso 55° to 125° from vertical), and only after the arms
+have been straight once, so getting into position isn't a rep.
+
+The classifier is squat only; pushup reps always have `classifier: null`.
+
 Rule flags (`web/src/brain/formRules.js`):
 
 | Flag | Raised when |
 |---|---|
-| `shallow` | the hip never went below the knee (`hitDepth` is false) **and** `minKneeAngle` is over 100° |
+| `shallow` | squat: the hip never went below the knee (`hitDepth` is false) **and** `minKneeAngle` is over 100°. Pushup: `hitDepth` is false |
+| `body_bend` | pushup only: `maxBodyBend` is over 25° (hips sagging or piked) |
 | `excessive_lean` | `maxTorsoLean` is over 45° (a starting guess; tune on real footage) |
 | `no_lockout` | the lifter went back down without standing up. Not raised for the last rep of a video that ends mid-rep, since there's no way to tell |
 
@@ -79,13 +87,15 @@ feature list, so it can only use fields that are in the Rep.
   "landmarks": [{ "x": 0.51, "y": 0.32, "z": -0.1, "visibility": 0.98 }],
   "kneeAngle": 165,
   "torsoLean": 12,
+  "elbowAngle": 172,
+  "bodyBend": 6,
   "phase": "standing"
 }
 ```
 
 - `landmarks`: 33 MediaPipe body points, `x`/`y` from 0 to 1 across the video.
   Use `drawSkeleton(canvas, landmarks)` from the brain to draw the overlay.
-- `phase`: one of `"standing"`, `"descending"`, `"bottom"`, `"ascending"`.
+- `phase`: one of `"standing"` (the top of a rep, for either lift), `"descending"`, `"bottom"`, `"ascending"`.
 
 ## Set and session (app side, stored by Jacob)
 

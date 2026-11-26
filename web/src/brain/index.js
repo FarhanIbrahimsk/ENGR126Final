@@ -1,10 +1,10 @@
 // The one entry point the app uses. See docs/data-contract.md.
-import { mockReps } from "../shared/mockReps.js";
+import { mockReps, mockPushupReps } from "../shared/mockReps.js";
 import { validateRep } from "../shared/contract.js";
 
 import { createPoseLandmarker, openCamera, detect } from "./pose.js";
 
-import { kneeAngle, torsoLean, hipBelowKnee } from "./angles.js";
+import { kneeAngle, torsoLean, hipBelowKnee, elbowAngle, bodyBend } from "./angles.js";
 import { createLandmarkSmoother } from "./smoothing.js";
 import { createRepCounter } from "./repCounter.js";
 import { checkForm } from "./formRules.js";
@@ -17,7 +17,7 @@ export { loadClassifier } from "./classifier.js";
 /**
  * Start tracking a lifter in a <video> element.
  * @param {HTMLVideoElement} video
- * @param {{ lift?: string, mode?: "live"|"file", mock?: boolean,
+ * @param {{ lift?: "squat"|"pushup", mode?: "live"|"file", mock?: boolean,
  *           onFrame?: (frame: object) => void, onRep?: (rep: object) => void,
  *           onEnd?: () => void }} options  onEnd fires when a video file finishes
  * @returns {Promise<() => void>} call it to stop tracking
@@ -51,7 +51,8 @@ async function startReal(video, { lift = "squat", mode = "live", onFrame = () =>
     lift,
     onRep: (rep, details) => {
       rep.ruleFlags = checkForm(rep, details);
-      rep.classifier = classify(rep);
+      // The model is trained on squats only.
+      rep.classifier = lift === "squat" ? classify(rep) : null;
       onRep(rep);
     },
   });
@@ -73,6 +74,8 @@ async function startReal(video, { lift = "squat", mode = "live", onFrame = () =>
           landmarks,
           kneeAngle: kneeAngle(landmarks, aspect),
           torsoLean: torsoLean(landmarks, aspect),
+          elbowAngle: elbowAngle(landmarks, aspect),
+          bodyBend: bodyBend(landmarks, aspect),
         };
         frame.phase = counter.update({ ...frame, hipBelowKnee: hipBelowKnee(landmarks) });
         onFrame(frame);
@@ -100,10 +103,11 @@ async function startReal(video, { lift = "squat", mode = "live", onFrame = () =>
 }
 
 // Sends one fake rep every 3 seconds.
-function startMock({ onRep = () => {} }) {
+function startMock({ lift = "squat", onRep = () => {} }) {
+  const reps = lift === "pushup" ? mockPushupReps : mockReps;
   let i = 0;
   const timer = setInterval(() => {
-    const rep = { ...mockReps[i % mockReps.length], rep: i + 1, startTime: Date.now() };
+    const rep = { ...reps[i % reps.length], rep: i + 1, startTime: Date.now() };
     const problems = validateRep(rep);
     if (problems.length) console.warn("Mock rep breaks the contract:", problems);
     onRep(rep);

@@ -2,7 +2,7 @@
 // Add ?mock to the URL for fake reps with no camera, e.g. http://localhost:5173/?mock#/live
 import { startTracking, drawSkeleton } from "../../brain/index.js";
 import { saveSet } from "../storage/db.js";
-import { FLAG_LABELS, escapeHtml } from "../components/setDetails.js";
+import { FLAG_LABELS, escapeHtml, liftInfo } from "../components/setDetails.js";
 
 const useMock = new URLSearchParams(location.search).has("mock");
 const BANNER_SECONDS = 4;
@@ -14,11 +14,13 @@ function repItem(rep) {
   const flagged = !isSuccessful(rep);
   const tags = rep.ruleFlags.map((f) => FLAG_LABELS[f] ?? f);
   if (rep.classifier) tags.push(`Model: ${rep.classifier.label} ${Math.round(rep.classifier.confidence * 100)}%`);
+  const info = liftInfo(rep.lift);
+  const stats = `${info.angle} ${rep[info.angleKey]}° · ${info.tilt} ${rep[info.tiltKey]}° · ${(rep.durationMs / 1000).toFixed(1)}s`;
   const li = document.createElement("li");
   li.className = flagged ? "rep-item flagged" : "rep-item";
   li.innerHTML = `
     <span class="rep-num">${String(rep.rep).padStart(2, "0")}</span>
-    <span class="rep-stats">KNEE ${rep.minKneeAngle}° · LEAN ${rep.maxTorsoLean}° · ${(rep.durationMs / 1000).toFixed(1)}s</span>
+    <span class="rep-stats">${stats}</span>
     <span class="rep-tags">${tags.length ? tags.map((t) => `<span class="chip bad">${escapeHtml(t)}</span>`).join("") : `<span class="chip good">Clean</span>`}</span>`;
   return li;
 }
@@ -45,8 +47,8 @@ export function renderLiveSet(page) {
     </div>
 
     <div class="telemetry" aria-label="Live angles">
-      <div class="tile"><span class="tile-label">Knee</span><span id="knee" class="tile-value num">--</span></div>
-      <div class="tile"><span class="tile-label">Lean</span><span id="lean" class="tile-value num">--</span></div>
+      <div class="tile"><span id="angle-label" class="tile-label">Knee</span><span id="angle" class="tile-value num">--</span></div>
+      <div class="tile"><span id="tilt-label" class="tile-label">Lean</span><span id="tilt" class="tile-value num">--</span></div>
     </div>
 
     <ol id="reps" class="rep-list"></ol>
@@ -55,6 +57,10 @@ export function renderLiveSet(page) {
       <div id="banner" class="banner" role="status" hidden></div>
       <p id="status" role="status" class="dock-status"></p>
       <div class="action-bar">
+        <label class="lift-field">
+          <span>Exercise</span>
+          <select id="lift"><option value="squat">Squat</option><option value="pushup">Pushup</option></select>
+        </label>
         <label class="weight-field">
           <span>Weight (lb)</span>
           <input id="weight" type="number" min="0" step="any" inputmode="decimal" required />
@@ -68,6 +74,7 @@ export function renderLiveSet(page) {
   const video = $("#video");
   const canvas = $("#overlay");
   const weight = $("#weight");
+  const liftSelect = $("#lift");
   const button = $("#toggle");
   const count = $("#count");
   const attempts = $("#attempts");
@@ -75,8 +82,8 @@ export function renderLiveSet(page) {
   const list = $("#reps");
   const banner = $("#banner");
   const phase = $("#phase");
-  const knee = $("#knee");
-  const lean = $("#lean");
+  const angle = $("#angle");
+  const tilt = $("#tilt");
 
   let stopTracking = null;
   let currentSet = null;
@@ -94,9 +101,19 @@ export function renderLiveSet(page) {
     if (seconds) bannerTimer = setTimeout(() => (banner.hidden = true), seconds * 1000);
   };
 
+  const degrees = (value) => (value == null ? "--" : `${Math.round(value)}°`);
+
+  // Pushups are bodyweight, so the weight field only applies to squats.
+  const showLift = () => {
+    const info = liftInfo(liftSelect.value);
+    $("#angle-label").textContent = info.angle;
+    $("#tilt-label").textContent = info.tilt;
+    $(".weight-field").hidden = liftSelect.value === "pushup";
+  };
+
   const resetReadout = () => {
-    knee.textContent = "--";
-    lean.textContent = "--";
+    angle.textContent = "--";
+    tilt.textContent = "--";
     phase.textContent = "Idle";
     canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
   };
@@ -110,17 +127,22 @@ export function renderLiveSet(page) {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     drawSkeleton(canvas, frame.landmarks);
-    knee.textContent = `${Math.round(frame.kneeAngle)}°`;
-    lean.textContent = `${Math.round(frame.torsoLean)}°`;
-    phase.textContent = frame.phase;
+    const pushup = liftSelect.value === "pushup"; // locked while a set runs
+    angle.textContent = degrees(pushup ? frame.elbowAngle : frame.kneeAngle);
+    tilt.textContent = degrees(pushup ? frame.bodyBend : frame.torsoLean);
+    // The counter calls the top of a rep "standing", which reads oddly for a pushup.
+    phase.textContent = pushup && frame.phase === "standing" ? "top" : frame.phase;
   };
 
   const startSet = async () => {
-    if (!weight.reportValidity()) return;
-    const set = { id: new Date().toISOString(), lift: "squat", weightLbs: Number(weight.value), reps: [] };
+    const lift = liftSelect.value;
+    if (lift === "squat" && !weight.reportValidity()) return;
+    const weightLbs = lift === "squat" ? Number(weight.value) : 0;
+    const set = { id: new Date().toISOString(), lift, weightLbs, reps: [] };
 
     button.disabled = true;
     weight.disabled = true;
+    liftSelect.disabled = true;
     status.textContent = "Starting tracker...";
     list.innerHTML = "";
     count.textContent = "0";
@@ -161,6 +183,7 @@ export function renderLiveSet(page) {
       console.error(err);
       status.textContent = `Tracker failed to start: ${err.message}`;
       weight.disabled = false;
+      liftSelect.disabled = false;
     }
     button.disabled = false;
   };
@@ -179,6 +202,7 @@ export function renderLiveSet(page) {
     button.classList.remove("stop");
     button.classList.add("primary");
     weight.disabled = false;
+    liftSelect.disabled = false;
     resetReadout();
 
     if (!set.reps.length) {
@@ -193,6 +217,15 @@ export function renderLiveSet(page) {
       console.error(err);
       status.textContent = `Save failed: ${err.message}`;
     }
+  };
+
+  liftSelect.onchange = () => {
+    showLift();
+    list.innerHTML = "";
+    count.textContent = "0";
+    attempts.textContent = "of 0";
+    status.textContent = "";
+    banner.hidden = true;
   };
 
   button.onclick = () => (currentSet ? finishSet() : startSet());

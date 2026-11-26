@@ -7,3 +7,10 @@ export const mockReps = [
   { rep: 4, lift: "squat", durationMs: 2700, minKneeAngle: 84, maxTorsoLean: 47, hitDepth: true, ruleFlags: ["excessive_lean"], classifier: { label: "bad", confidence: 0.74 } },
   { rep: 5, lift: "squat", durationMs: 3100, minKneeAngle: 101, maxTorsoLean: 49, hitDepth: false, ruleFlags: ["shallow", "excessive_lean"], classifier: { label: "bad", confidence: 0.88 } },
 ];
+
+export const mockPushupReps = [
+  { rep: 1, lift: "pushup", durationMs: 1800, minElbowAngle: 82, maxBodyBend: 8, hitDepth: true, ruleFlags: [], classifier: null },
+  { rep: 2, lift: "pushup", durationMs: 1900, minElbowAngle: 88, maxBodyBend: 11, hitDepth: true, ruleFlags: [], classifier: null },
+  { rep: 3, lift: "pushup", durationMs: 1700, minElbowAngle: 112, maxBodyBend: 10, hitDepth: false, ruleFlags: ["shallow"], classifier: null },
+  { rep: 4, lift: "pushup", durationMs: 2100, minElbowAngle: 85, maxBodyBend: 34, hitDepth: true, ruleFlags: ["body_bend"], classifier: null },
+];
