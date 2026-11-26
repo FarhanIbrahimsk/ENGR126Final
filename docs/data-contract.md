@@ -57,11 +57,14 @@ to score saved labeled reps; the app doesn't need them to track a set.
 | `ruleFlags` | string[] | Any of `"shallow"`, `"excessive_lean"`, `"no_lockout"`. Empty = clean rep |
 | `classifier` | object or `null` | `{ label: "good" \| "bad", confidence: 0.5 to 1 }`. `null` if there is no trained model yet |
 
+Movements shorter than 0.5s, or with torso lean over 75°, are not reps (walking, setting up the phone).
+The brain drops them, so `onRep` never sees them.
+
 Rule flags (`web/src/brain/formRules.js`):
 
 | Flag | Raised when |
 |---|---|
-| `shallow` | the hip never went below the knee (`hitDepth` is false) |
+| `shallow` | the hip never went below the knee (`hitDepth` is false) **and** `minKneeAngle` is over 100° |
 | `excessive_lean` | `maxTorsoLean` is over 45° (a starting guess; tune on real footage) |
 | `no_lockout` | the lifter went back down without standing up. Not raised for the last rep of a video that ends mid-rep, since there's no way to tell |
 

@@ -7,7 +7,7 @@ import { checkModel, predict, loadClassifier } from "../src/brain/classifier.js"
 import { createRepCounter } from "../src/brain/repCounter.js";
 import { RULE_FLAGS } from "../src/shared/contract.js";
 
-const rep = (over = {}) => ({ hitDepth: true, maxTorsoLean: 30, ...over });
+const rep = (over = {}) => ({ hitDepth: true, minKneeAngle: 110, maxTorsoLean: 30, ...over });
 
 test("a clean rep has no flags", () => {
   assert.deepEqual(checkForm(rep(), { lockedOut: true }), []);
@@ -24,6 +24,11 @@ test("each rule flags on its own, in contract order", () => {
 test("lean exactly at the limit is fine, and unknown lockout is not a fault", () => {
   assert.deepEqual(checkForm(rep({ maxTorsoLean: 45 }), { lockedOut: null }), []);
   assert.deepEqual(checkForm(rep()), []);
+});
+
+test("a knee bent to 100 degrees is deep enough even if the hip stays above the knee", () => {
+  assert.deepEqual(checkForm(rep({ hitDepth: false, minKneeAngle: 100 })), []);
+  assert.deepEqual(checkForm(rep({ hitDepth: false, minKneeAngle: 101 })), ["shallow"]);
 });
 
 // Drive the rep counter with a knee-angle curve, like the video pipeline does.
@@ -51,6 +56,20 @@ test("a video cut mid-ascent counts the rep but leaves lockout unknown", () => {
   assert.equal(cut.length, 1);
   assert.equal(cut[0].details.lockedOut, null);
   assert.deepEqual(checkForm(cut[0].r, cut[0].details).includes("no_lockout"), false);
+});
+
+test("movements too quick or too bent over to be a squat are dropped and don't use a rep number", () => {
+  const out = [];
+  const counter = createRepCounter({ onRep: (r) => out.push(r) });
+  let time = 0;
+  const move = (step, lean) =>
+    [...down, ...up].forEach((knee) => counter.update({ kneeAngle: knee, torsoLean: lean, hipBelowKnee: true, timestamp: (time += step) }));
+  move(40, 20); // 0.24s
+  move(300, 100); // bent right over, like picking up the phone
+  assert.equal(out.length, 0);
+  move(300, 30);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].rep, 1);
 });
 
 const logistic = {

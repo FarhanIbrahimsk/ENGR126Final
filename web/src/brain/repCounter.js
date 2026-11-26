@@ -9,6 +9,10 @@ const BOTTOM = 100; // knee below this = at the bottom
 const MIN_REP_DEPTH = 140; // dips that never go below this aren't reps
 const REVERSAL = 10; // degrees of change that count as switching direction
 const MIN_ASCENT = 25; // must rise this far from the bottom before going back down ends a rep
+// Anything outside these isn't a squat (e.g. walking back from setting up the phone). It is
+// dropped completely: not counted, not numbered, never saved.
+const MIN_REP_MS = 500;
+const MAX_PLAUSIBLE_LEAN = 75; // degrees from vertical
 
 /**
  * @param {{ lift?: string, onRep: (rep: object, details: { lockedOut: boolean|null }) => void }} options
@@ -28,14 +32,16 @@ export function createRepCounter({ lift = "squat", onRep }) {
   };
 
   const finish = (f, lockedOut) => {
-    if (current.minKnee < MIN_REP_DEPTH) {
+    const durationMs = f.timestamp - current.startTime;
+    const isAttempt = current.minKnee < MIN_REP_DEPTH && durationMs >= MIN_REP_MS && current.maxLean <= MAX_PLAUSIBLE_LEAN;
+    if (isAttempt) {
       count++;
       onRep(
         {
           rep: count,
           lift,
           startTime: current.startTime,
-          durationMs: f.timestamp - current.startTime,
+          durationMs,
           minKneeAngle: Math.round(current.minKnee),
           maxTorsoLean: Math.round(current.maxLean),
           hitDepth: current.hitDepth,

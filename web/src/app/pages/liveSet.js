@@ -8,8 +8,10 @@ const useMock = new URLSearchParams(location.search).has("mock");
 const BANNER_SECONDS = 4;
 const TRACKING_LOST_MS = 1500; // no pose for this long while a set is running
 
+const isSuccessful = (rep) => !rep.ruleFlags.length && rep.classifier?.label !== "bad";
+
 function repItem(rep) {
-  const flagged = rep.ruleFlags.length > 0 || rep.classifier?.label === "bad";
+  const flagged = !isSuccessful(rep);
   const tags = rep.ruleFlags.map((f) => FLAG_LABELS[f] ?? f);
   if (rep.classifier) tags.push(`Model: ${rep.classifier.label} ${Math.round(rep.classifier.confidence * 100)}%`);
   const li = document.createElement("li");
@@ -36,7 +38,7 @@ export function renderLiveSet(page) {
       <video id="video" autoplay playsinline muted></video>
       <canvas id="overlay"></canvas>
       <div class="hud-counter" aria-live="polite">
-        <span class="hud-label">Reps</span>
+        <span class="hud-label">Successful<br /><span id="attempts">of 0</span></span>
         <strong id="count" class="num">0</strong>
       </div>
       <div class="hud-phase" id="phase">Idle</div>
@@ -68,6 +70,7 @@ export function renderLiveSet(page) {
   const weight = $("#weight");
   const button = $("#toggle");
   const count = $("#count");
+  const attempts = $("#attempts");
   const status = $("#status");
   const list = $("#reps");
   const banner = $("#banner");
@@ -121,11 +124,13 @@ export function renderLiveSet(page) {
     status.textContent = "Starting tracker...";
     list.innerHTML = "";
     count.textContent = "0";
+    attempts.textContent = "of 0";
     banner.hidden = true;
 
     const onRep = (rep) => {
       set.reps.push(rep);
-      count.textContent = set.reps.length;
+      count.textContent = set.reps.filter(isSuccessful).length;
+      attempts.textContent = `of ${set.reps.length}`;
       list.prepend(repItem(rep));
       const { kind, text } = bannerFor(rep);
       showBanner(kind, text);
@@ -182,7 +187,8 @@ export function renderLiveSet(page) {
     }
     try {
       await saveSet(set);
-      status.textContent = `Saved: ${set.reps.length} reps at ${set.weightLbs} lb.`;
+      const weightText = set.weightLbs ? `${set.weightLbs} lb` : "bodyweight";
+      status.textContent = `Saved: ${set.reps.filter(isSuccessful).length} of ${set.reps.length} reps successful, ${weightText}.`;
     } catch (err) {
       console.error(err);
       status.textContent = `Save failed: ${err.message}`;

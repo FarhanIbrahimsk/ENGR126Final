@@ -29,7 +29,9 @@ ROOT = Path(__file__).resolve().parent.parent
 # Same names as the CSV columns and the contract's Rep fields. The browser reads this list from
 # the model file, so adding a feature here needs no change to classifier.js.
 FEATURES = ["minKneeAngle", "maxTorsoLean", "hitDepth", "durationMs"]
-LEAN_LIMIT = 45  # keep in step with THRESHOLDS.maxTorsoLean in web/src/brain/formRules.js
+# Keep these in step with THRESHOLDS in web/src/brain/formRules.js
+LEAN_LIMIT = 45
+DEPTH_KNEE_ANGLE = 100
 CLASSES = ["good", "bad"]  # "bad" is the positive class: models predict P(bad)
 
 
@@ -70,7 +72,8 @@ def fit(kind, X, y):
 
 def rules_say_bad(df):
     """The hand-written rules, without lockout (labels.csv doesn't record it)."""
-    return ((df["hitDepth"] == 0) | (df["maxTorsoLean"] > LEAN_LIMIT)).to_numpy()
+    shallow = (df["hitDepth"] == 0) & (df["minKneeAngle"] > DEPTH_KNEE_ANGLE)
+    return (shallow | (df["maxTorsoLean"] > LEAN_LIMIT)).to_numpy()
 
 
 # %% Evaluate
