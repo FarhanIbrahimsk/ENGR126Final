@@ -302,6 +302,20 @@ video {
   color: var(--cyan);
 }
 
+.hud-sound {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  background: rgba(19, 22, 31, 0.8);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.hud-sound[aria-pressed="false"] {
+  color: var(--muted);
+}
+
 .telemetry {
   display: grid;
   grid-template-columns: 1fr 1fr;

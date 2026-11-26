@@ -3,6 +3,7 @@
 import { startTracking, drawSkeleton } from "../../brain/index.js";
 import { saveSet } from "../storage/db.js";
 import { FLAG_LABELS, escapeHtml, liftInfo } from "../components/setDetails.js";
+import { createVoice, phraseFor, TRACKING_LOST_PHRASE } from "../audio/voice.js";
 
 const useMock = new URLSearchParams(location.search).has("mock");
 const BANNER_SECONDS = 4;
@@ -44,6 +45,7 @@ export function renderLiveSet(page) {
         <strong id="count" class="num">0</strong>
       </div>
       <div class="hud-phase" id="phase">Idle</div>
+      <button id="sound" type="button" class="hud-sound"></button>
     </div>
 
     <div class="telemetry" aria-label="Live angles">
@@ -84,6 +86,8 @@ export function renderLiveSet(page) {
   const phase = $("#phase");
   const angle = $("#angle");
   const tilt = $("#tilt");
+  const sound = $("#sound");
+  const voice = createVoice();
 
   let stopTracking = null;
   let currentSet = null;
@@ -109,6 +113,18 @@ export function renderLiveSet(page) {
     $("#angle-label").textContent = info.angle;
     $("#tilt-label").textContent = info.tilt;
     $(".weight-field").hidden = liftSelect.value === "pushup";
+  };
+
+  const showSound = () => {
+    sound.textContent = voice.isEnabled() ? "Voice on" : "Voice off";
+    sound.setAttribute("aria-pressed", String(voice.isEnabled()));
+  };
+  sound.hidden = !voice.supported;
+  showSound();
+  sound.onclick = () => {
+    voice.setEnabled(!voice.isEnabled());
+    showSound();
+    voice.say("Voice on"); // silent when just turned off
   };
 
   const resetReadout = () => {
@@ -140,6 +156,9 @@ export function renderLiveSet(page) {
     const weightLbs = lift === "squat" ? Number(weight.value) : 0;
     const set = { id: new Date().toISOString(), lift, weightLbs, reps: [] };
 
+    // Phones only allow speech that starts from a tap, so speak before anything async.
+    voice.say("Starting");
+
     button.disabled = true;
     weight.disabled = true;
     liftSelect.disabled = true;
@@ -151,11 +170,13 @@ export function renderLiveSet(page) {
 
     const onRep = (rep) => {
       set.reps.push(rep);
-      count.textContent = set.reps.filter(isSuccessful).length;
+      const successCount = set.reps.filter(isSuccessful).length;
+      count.textContent = successCount;
       attempts.textContent = `of ${set.reps.length}`;
       list.prepend(repItem(rep));
       const { kind, text } = bannerFor(rep);
       showBanner(kind, text);
+      voice.say(phraseFor(rep, successCount));
     };
 
     try {
@@ -176,12 +197,14 @@ export function renderLiveSet(page) {
           if (performance.now() - lastFrameAt > TRACKING_LOST_MS && !trackingLost) {
             trackingLost = true;
             showBanner("bad", "Tracking lost: re-enter camera frame", 0);
+            voice.say(TRACKING_LOST_PHRASE);
           }
         }, 500);
       }
     } catch (err) {
       console.error(err);
       status.textContent = `Tracker failed to start: ${err.message}`;
+      voice.say("Tracker failed to start");
       weight.disabled = false;
       liftSelect.disabled = false;
     }
@@ -193,6 +216,7 @@ export function renderLiveSet(page) {
     stopTracking();
     stopTracking = null;
     currentSet = null;
+    voice.stop();
     clearInterval(lostTimer);
     clearTimeout(bannerTimer);
     trackingLost = false;
@@ -232,6 +256,7 @@ export function renderLiveSet(page) {
 
   return () => {
     leftPage = true;
+    voice.stop();
     clearInterval(lostTimer);
     clearTimeout(bannerTimer);
     if (currentSet) finishSet();
