@@ -257,9 +257,6 @@ video {
   object-fit: contain;
 }
 
-/* Rotate on Live Set turns the video with an inline transform. The overlay isn't turned: its
-   landmarks already come from the turned frame. */
-
 .hud-counter {
   position: absolute;
   top: 12px;
@@ -303,21 +300,6 @@ video {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--cyan);
-}
-
-.hud-rotate {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  background: rgba(19, 22, 31, 0.8);
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.hud-rotate.turned {
-  color: var(--cyan);
-  border-color: var(--cyan);
 }
 
 .hud-sound {

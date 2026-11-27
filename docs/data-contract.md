@@ -98,12 +98,10 @@ feature list, so it can only use fields that are in the Rep.
   Use `drawSkeleton(canvas, landmarks)` from the brain to draw the overlay.
 - `pushupPosition`: the near side's shoulder, elbow, wrist, hip and knee are clearly visible, torso and thigh
   are each within 50° of level, the body is within 60° of straight at the hip, and the wrist is below the
-  shoulder. Standing, bending over and kneeling are not. It needs an upright picture: someone standing in a
-  sideways picture looks like they're lying down.
+  shoulder. Standing, bending over and kneeling are not. It needs an upright picture (phone upright on the floor):
+  someone standing in a sideways picture looks like they're lying down.
 - `phase`: one of `"standing"` (the top of a rep, for either lift), `"descending"`, `"bottom"`, `"ascending"`.
   Pushups can also be `"away"` (not in the pushup position) or `"setup"` (in position, arms not yet straight).
-- `startTracking` takes `rotation: () => 0 | 90 | 180 | 270` to turn each frame clockwise before reading the
-  pose, for a camera whose picture comes in sideways or upside down. Landmarks then match the turned picture.
 
 ## Set and session (app side, stored by Jacob)
 
