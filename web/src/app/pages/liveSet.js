@@ -1,6 +1,6 @@
 // Live Set page: run a set with real tracking and save it when it ends.
 // Add ?mock to the URL for fake reps with no camera, e.g. http://localhost:5173/?mock#/live
-import { startTracking, drawSkeleton } from "../../brain/index.js";
+import { startTracking, drawSkeleton, turnedSize } from "../../brain/index.js";
 import { saveSet } from "../storage/db.js";
 import { FLAG_LABELS, escapeHtml, liftInfo } from "../components/setDetails.js";
 import { createVoice, phraseFor, TRACKING_LOST_PHRASE } from "../audio/voice.js";
@@ -8,7 +8,30 @@ import { createVoice, phraseFor, TRACKING_LOST_PHRASE } from "../audio/voice.js"
 const useMock = new URLSearchParams(location.search).has("mock");
 const BANNER_SECONDS = 4;
 const TRACKING_LOST_MS = 1500; // no pose for this long while a set is running
-const FLIP_KEY = "flipCamera";
+const ROTATION_KEY = "cameraRotation";
+const ROTATIONS = [0, 90, 180, 270];
+
+// What the HUD shows for each counter phase during pushups.
+const PUSHUP_PHASES = { away: "Get in position", setup: "Straighten arms", standing: "top" };
+
+// Storage can be blocked, for example in some private browsing modes.
+function loadRotation() {
+  try {
+    const saved = localStorage.getItem(ROTATION_KEY);
+    if (saved !== null && ROTATIONS.includes(Number(saved))) return Number(saved);
+    return localStorage.getItem("flipCamera") === "true" ? 180 : 0; // the old Flip camera setting
+  } catch {
+    return 0;
+  }
+}
+
+function saveRotation(rotation) {
+  try {
+    localStorage.setItem(ROTATION_KEY, rotation);
+  } catch {
+    // Not remembered; it still applies to this visit.
+  }
+}
 
 const isSuccessful = (rep) => !rep.ruleFlags.length && rep.classifier?.label !== "bad";
 
@@ -46,7 +69,7 @@ export function renderLiveSet(page) {
         <strong id="count" class="num">0</strong>
       </div>
       <div class="hud-phase" id="phase">Idle</div>
-      <button id="flip" type="button" class="hud-flip" aria-pressed="false">Flip camera</button>
+      <button id="rotate" type="button" class="hud-rotate"></button>
       <button id="sound" type="button" class="hud-sound"></button>
     </div>
 
@@ -88,7 +111,7 @@ export function renderLiveSet(page) {
   const phase = $("#phase");
   const angle = $("#angle");
   const tilt = $("#tilt");
-  const flip = $("#flip");
+  const rotate = $("#rotate");
   const sound = $("#sound");
   const voice = createVoice();
 
@@ -130,18 +153,33 @@ export function renderLiveSet(page) {
     voice.say("Voice on"); // silent when just turned off
   };
 
-  // For a phone mounted so the picture comes in upside down. Remembered for next time.
-  let flipped = localStorage.getItem(FLIP_KEY) === "true";
-  const showFlip = () => {
-    flip.setAttribute("aria-pressed", flipped);
-    video.classList.toggle("flipped", flipped);
+  // For a phone whose picture comes in sideways or upside down. The tracker turns each frame
+  // before reading the pose, and the preview is turned to match. Remembered for next time.
+  let rotation = loadRotation();
+  const fitPreview = () => {
+    const { videoWidth: vw, videoHeight: vh, clientWidth: boxW, clientHeight: boxH } = video;
+    let scale = 1;
+    if (vw && vh && boxW && boxH) {
+      // The video sits letterboxed in its box; a quarter turn needs it shrunk or grown to fit again.
+      const fit = Math.min(boxW / vw, boxH / vh);
+      const turned = turnedSize(vw * fit, vh * fit, rotation);
+      scale = Math.min(boxW / turned.width, boxH / turned.height);
+    }
+    video.style.transform = rotation ? `rotate(${rotation}deg) scale(${scale})` : "";
   };
-  showFlip();
-  flip.onclick = () => {
-    flipped = !flipped;
-    localStorage.setItem(FLIP_KEY, flipped);
-    showFlip();
+  const showRotation = () => {
+    rotate.textContent = `Rotate ${rotation}°`;
+    rotate.classList.toggle("turned", rotation !== 0);
+    fitPreview();
   };
+  showRotation();
+  rotate.onclick = () => {
+    rotation = ROTATIONS[(ROTATIONS.indexOf(rotation) + 1) % ROTATIONS.length];
+    saveRotation(rotation);
+    showRotation();
+  };
+  video.addEventListener("resize", fitPreview); // the camera's size is known, or changed
+  window.addEventListener("resize", fitPreview);
 
   const resetReadout = () => {
     angle.textContent = "--";
@@ -156,14 +194,16 @@ export function renderLiveSet(page) {
       trackingLost = false;
       banner.hidden = true;
     }
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    // Landmarks match the turned picture, so the overlay takes its size.
+    const size = turnedSize(video.videoWidth, video.videoHeight, rotation);
+    canvas.width = size.width;
+    canvas.height = size.height;
     drawSkeleton(canvas, frame.landmarks);
     const pushup = liftSelect.value === "pushup"; // locked while a set runs
     angle.textContent = degrees(pushup ? frame.elbowAngle : frame.kneeAngle);
     tilt.textContent = degrees(pushup ? frame.bodyBend : frame.torsoLean);
-    // The counter calls the top of a rep "standing", which reads oddly for a pushup.
-    phase.textContent = pushup && frame.phase === "standing" ? "top" : frame.phase;
+    // Says why a pushup isn't counting yet; "standing" reads oddly for a pushup, so it's "top".
+    phase.textContent = (pushup && PUSHUP_PHASES[frame.phase]) || frame.phase;
   };
 
   const startSet = async () => {
@@ -196,7 +236,7 @@ export function renderLiveSet(page) {
     };
 
     try {
-      const stop = await startTracking(video, { lift: set.lift, mock: useMock, onFrame, onRep, isFlipped: () => flipped });
+      const stop = await startTracking(video, { lift: set.lift, mock: useMock, onFrame, onRep, rotation: () => rotation });
       if (leftPage) {
         stop(); // Left while the model was loading; don't keep the camera on.
         return;
@@ -272,6 +312,7 @@ export function renderLiveSet(page) {
 
   return () => {
     leftPage = true;
+    window.removeEventListener("resize", fitPreview);
     voice.stop();
     clearInterval(lostTimer);
     clearTimeout(bannerTimer);

@@ -257,10 +257,8 @@ video {
   object-fit: contain;
 }
 
-/* The overlay isn't turned: its landmarks already come from the turned frame. */
-.viewfinder video.flipped {
-  transform: rotate(180deg);
-}
+/* Rotate on Live Set turns the video with an inline transform. The overlay isn't turned: its
+   landmarks already come from the turned frame. */
 
 .hud-counter {
   position: absolute;
@@ -307,7 +305,7 @@ video {
   color: var(--cyan);
 }
 
-.hud-flip {
+.hud-rotate {
   position: absolute;
   left: 12px;
   bottom: 12px;
@@ -317,7 +315,7 @@ video {
   text-transform: uppercase;
 }
 
-.hud-flip[aria-pressed="true"] {
+.hud-rotate.turned {
   color: var(--cyan);
   border-color: var(--cyan);
 }

@@ -77,8 +77,17 @@ export function torsoLean(landmarks, aspect = 1) {
 
 // Pushups use the arm and the whole body line. Elbows are 13/14 and wrists 15/16.
 const PUSHUP_SIDES = {
-  left: { shoulder: 11, elbow: 13, wrist: 15, hip: 23, ankle: 27 },
-  right: { shoulder: 12, elbow: 14, wrist: 16, hip: 24, ankle: 28 },
+  left: { shoulder: 11, elbow: 13, wrist: 15, hip: 23, knee: 25, ankle: 27 },
+  right: { shoulder: 12, elbow: 14, wrist: 16, hip: 24, knee: 26, ankle: 28 },
+};
+
+// What counts as being in the pushup position. Loose enough for sagging or piked reps,
+// which still count and get flagged.
+const PUSHUP_POSITION = {
+  minVisibility: 0.5, // below this the model is guessing where the point is
+  maxFromLevel: 50, // torso and thigh each within this many degrees of horizontal
+  maxHipBend: 60, // degrees away from a straight shoulder-hip-knee line
+  handsBelow: 0.1, // wrist at least this far below the shoulder, as a share of torso length
 };
 
 function pushupSide(landmarks) {
@@ -115,4 +124,31 @@ export function bodyBend(landmarks, aspect = 1) {
     toPixels(landmarks[s.ankle], aspect)
   );
   return angle === null ? null : 180 - angle;
+}
+
+/**
+ * Is this the pushup position: torso and legs near level, body near straight, hands under the
+ * shoulders, and those points clearly visible? Rules out standing, bending over the phone, and
+ * kneeling. Needs an upright picture: a standing person in a sideways picture looks lying down.
+ * @param {object[]} landmarks 33 MediaPipe landmarks
+ * @param {number} [aspect] videoWidth / videoHeight
+ */
+export function pushupPosition(landmarks, aspect = 1) {
+  const s = pushupSide(landmarks);
+  const keys = ["shoulder", "elbow", "wrist", "hip", "knee"];
+  if (keys.some((k) => (landmarks[s[k]].visibility ?? 0) < PUSHUP_POSITION.minVisibility)) return false;
+  const [shoulder, wrist, hip, knee] = [s.shoulder, s.wrist, s.hip, s.knee].map((i) => toPixels(landmarks[i], aspect));
+  const fromLevel = (a, b) => {
+    const deg = Math.abs((Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI);
+    return Math.min(deg, 180 - deg);
+  };
+  const hipAngle = angleAt(shoulder, hip, knee);
+  const torsoLength = Math.hypot(shoulder.x - hip.x, shoulder.y - hip.y);
+  return (
+    hipAngle !== null &&
+    180 - hipAngle <= PUSHUP_POSITION.maxHipBend &&
+    fromLevel(hip, shoulder) <= PUSHUP_POSITION.maxFromLevel &&
+    fromLevel(hip, knee) <= PUSHUP_POSITION.maxFromLevel &&
+    wrist.y - shoulder.y >= PUSHUP_POSITION.handsBelow * torsoLength // image y grows downward
+  );
 }

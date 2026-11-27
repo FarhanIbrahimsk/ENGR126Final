@@ -3,7 +3,8 @@
 
 export const LIFTS = ["squat", "pushup"];
 export const RULE_FLAGS = ["shallow", "excessive_lean", "body_bend", "no_lockout"];
-export const PHASES = ["standing", "descending", "bottom", "ascending"];
+// "away" and "setup" are pushup only: not in the pushup position, and waiting for straight arms.
+export const PHASES = ["standing", "descending", "bottom", "ascending", "away", "setup"];
 
 /**
  * Returns a list of problems with a rep object. Empty list = valid.

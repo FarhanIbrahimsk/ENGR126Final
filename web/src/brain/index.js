@@ -2,15 +2,15 @@
 import { mockReps, mockPushupReps } from "../shared/mockReps.js";
 import { validateRep } from "../shared/contract.js";
 
-import { createPoseLandmarker, openCamera, detect } from "./pose.js";
+import { createPoseLandmarker, openCamera, detect, turnedSize } from "./pose.js";
 
-import { kneeAngle, torsoLean, hipBelowKnee, elbowAngle, bodyBend } from "./angles.js";
+import { kneeAngle, torsoLean, hipBelowKnee, elbowAngle, bodyBend, pushupPosition } from "./angles.js";
 import { createLandmarkSmoother } from "./smoothing.js";
 import { createRepCounter } from "./repCounter.js";
 import { checkForm } from "./formRules.js";
 import { loadClassifier } from "./classifier.js";
 
-export { drawSkeleton } from "./pose.js";
+export { drawSkeleton, turnedSize } from "./pose.js";
 export { checkForm } from "./formRules.js";
 export { loadClassifier } from "./classifier.js";
 
@@ -19,8 +19,9 @@ export { loadClassifier } from "./classifier.js";
  * @param {HTMLVideoElement} video
  * @param {{ lift?: "squat"|"pushup", mode?: "live"|"file", mock?: boolean,
  *           onFrame?: (frame: object) => void, onRep?: (rep: object) => void,
- *           onEnd?: () => void, isFlipped?: () => boolean }} options  onEnd fires when a video file
- *   finishes; isFlipped is asked each frame whether the video is upside down
+ *           onEnd?: () => void, rotation?: () => number }} options  onEnd fires when a video file
+ *   finishes; rotation is asked each frame how far to turn the picture (0, 90, 180 or 270
+ *   degrees clockwise), and landmarks then match the turned picture
  * @returns {Promise<() => void>} call it to stop tracking
  */
 export async function startTracking(video, options = {}) {
@@ -30,7 +31,7 @@ export async function startTracking(video, options = {}) {
 }
 
 // Real pipeline: pose -> angles -> rep counter -> form rules + classifier.
-async function startReal(video, { lift = "squat", mode = "live", onFrame = () => {}, onRep = () => {}, onEnd = () => {}, isFlipped = () => false }) {
+async function startReal(video, { lift = "squat", mode = "live", onFrame = () => {}, onRep = () => {}, onEnd = () => {}, rotation = () => 0 }) {
   const isFile = mode === "file";
   const landmarker = await createPoseLandmarker();
   const classify = await loadClassifier();
@@ -47,7 +48,8 @@ async function startReal(video, { lift = "squat", mode = "live", onFrame = () =>
   const fileStart = Date.now() - video.currentTime * 1000;
   const clock = () => (isFile ? Math.round(fileStart + video.currentTime * 1000) : Date.now());
 
-  const smooth = createLandmarkSmoother();
+  let smooth = createLandmarkSmoother();
+  let lastRotation = 0;
   const counter = createRepCounter({
     lift,
     onRep: (rep, details) => {
@@ -66,10 +68,15 @@ async function startReal(video, { lift = "squat", mode = "live", onFrame = () =>
     if (video.currentTime !== lastVideoTime) {
       lastVideoTime = video.currentTime;
       const now = performance.now();
-      const raw = detect(landmarker, video, now, isFlipped());
+      const turn = rotation();
+      // Landmarks jump when the picture turns; don't smooth them across the jump.
+      if (turn !== lastRotation) smooth = createLandmarkSmoother();
+      lastRotation = turn;
+      const raw = detect(landmarker, video, now, turn);
       if (raw) {
         const landmarks = smooth(raw, now);
-        const aspect = video.videoWidth / video.videoHeight;
+        const size = turnedSize(video.videoWidth, video.videoHeight, turn);
+        const aspect = size.width / size.height;
         const frame = {
           timestamp: clock(),
           landmarks,
@@ -77,6 +84,7 @@ async function startReal(video, { lift = "squat", mode = "live", onFrame = () =>
           torsoLean: torsoLean(landmarks, aspect),
           elbowAngle: elbowAngle(landmarks, aspect),
           bodyBend: bodyBend(landmarks, aspect),
+          pushupPosition: pushupPosition(landmarks, aspect),
         };
         frame.phase = counter.update({ ...frame, hipBelowKnee: hipBelowKnee(landmarks) });
         onFrame(frame);

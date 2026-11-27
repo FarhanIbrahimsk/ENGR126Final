@@ -3,6 +3,8 @@
 // "standing" means the top of the rep: legs straight for squats, arms straight for pushups.
 // Separate up/down thresholds (hysteresis) so jitter near a cutoff doesn't double-count.
 // Shallow reps (never reach BOTTOM) still count, so formRules can flag them.
+// Pushups also report "away" (not in the pushup position) and "setup" (in position, waiting for
+// straight arms), so the screen can say why nothing is counting.
 
 const REVERSAL = 10; // degrees of change that count as switching direction
 const MIN_ASCENT = 25; // must rise this far from the bottom before going back down ends a rep
@@ -10,7 +12,6 @@ const MIN_ASCENT = 25; // must rise this far from the bottom before going back d
 // It is dropped completely: not counted, not numbered, never saved.
 const MIN_REP_MS = 500;
 const MAX_SQUAT_LEAN = 75; // degrees from vertical
-const PUSHUP_LEAN = { min: 40, max: 140 }; // 90 is a level body
 const LEAVE_MS = 500; // out of the pushup position this long ends it; shorter is treated as jitter
 
 // Each lift follows one joint angle through the same up-down-up cycle.
@@ -37,8 +38,9 @@ const LIFT_SETTINGS = {
     bottom: 110,
     minDepth: 130,
     deepEnough: (f) => f.elbowAngle <= 110,
-    // Arm movements only count with the body close to level, so standing or kneeling upright doesn't.
-    inPosition: (f) => f.torsoLean >= PUSHUP_LEAN.min && f.torsoLean <= PUSHUP_LEAN.max,
+    // Arm movements only count in the pushup position (angles.js pushupPosition), so standing,
+    // bending over the phone or kneeling doesn't.
+    inPosition: (f) => f.pushupPosition === true,
     // Getting down into position bends the arms too, so wait until they've been straight.
     needsTopFirst: true,
     isPlausible: () => true,
@@ -50,8 +52,9 @@ const LIFT_SETTINGS = {
  * @param {{ lift?: "squat"|"pushup", onRep: (rep: object, details: { lockedOut: boolean|null }) => void }} options
  *   onRep gets a contract Rep (ruleFlags empty, classifier null) plus details for formRules.
  * @returns {{ update: (frame: object) => string, end: (timestamp: number) => void }}
- *   update takes { timestamp, torsoLean } plus kneeAngle and hipBelowKnee (squat) or elbowAngle
- *   and bodyBend (pushup), and returns the current phase; end closes out a video that stops mid-rep
+ *   update takes { timestamp } plus kneeAngle, torsoLean and hipBelowKnee (squat) or elbowAngle,
+ *   bodyBend and pushupPosition (pushup), and returns the current phase; end closes out a video
+ *   that stops mid-rep
  */
 export function createRepCounter({ lift = "squat", onRep }) {
   const settings = LIFT_SETTINGS[lift];
@@ -101,12 +104,12 @@ export function createRepCounter({ lift = "squat", onRep }) {
     if (!settings.inPosition(f)) {
       awaySince ??= f.timestamp;
       if (f.timestamp - awaySince >= LEAVE_MS) reset();
-      return phase;
+      return "away";
     }
     awaySince = null;
     if (!ready) {
       ready = angle > settings.top;
-      return phase;
+      if (!ready) return "setup";
     }
     if (current) {
       current.minAngle = Math.min(current.minAngle, angle);

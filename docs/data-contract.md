@@ -62,8 +62,8 @@ to score saved labeled reps; the app doesn't need them to track a set.
 Movements shorter than 0.5s, or with torso lean over 75°, are not reps (walking, setting up the phone).
 The brain drops them, so `onRep` never sees them.
 
-Pushups only count while the body is near level (torso 40° to 140° from vertical), and only after the arms
-have been straight once, so getting into position isn't a rep.
+Pushups only count in the pushup position (`pushupPosition` below), and only after the arms have been
+straight once, so getting into position isn't a rep.
 
 The classifier is squat only; pushup reps always have `classifier: null`.
 
@@ -89,13 +89,21 @@ feature list, so it can only use fields that are in the Rep.
   "torsoLean": 12,
   "elbowAngle": 172,
   "bodyBend": 6,
+  "pushupPosition": true,
   "phase": "standing"
 }
 ```
 
 - `landmarks`: 33 MediaPipe body points, `x`/`y` from 0 to 1 across the video.
   Use `drawSkeleton(canvas, landmarks)` from the brain to draw the overlay.
+- `pushupPosition`: the near side's shoulder, elbow, wrist, hip and knee are clearly visible, torso and thigh
+  are each within 50° of level, the body is within 60° of straight at the hip, and the wrist is below the
+  shoulder. Standing, bending over and kneeling are not. It needs an upright picture: someone standing in a
+  sideways picture looks like they're lying down.
 - `phase`: one of `"standing"` (the top of a rep, for either lift), `"descending"`, `"bottom"`, `"ascending"`.
+  Pushups can also be `"away"` (not in the pushup position) or `"setup"` (in position, arms not yet straight).
+- `startTracking` takes `rotation: () => 0 | 90 | 180 | 270` to turn each frame clockwise before reading the
+  pose, for a camera whose picture comes in sideways or upside down. Landmarks then match the turned picture.
 
 ## Set and session (app side, stored by Jacob)
 

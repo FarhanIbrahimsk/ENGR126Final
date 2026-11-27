@@ -45,18 +45,28 @@ export async function openCamera(video) {
 }
 
 let lastTimestamp = -1;
-let flipCanvas = null;
+let turnCanvas = null;
 
-// A copy of the current frame turned 180 degrees.
-function turnedFrame(video) {
-  flipCanvas ??= document.createElement("canvas");
-  flipCanvas.width = video.videoWidth; // setting the size also clears the last rotation
-  flipCanvas.height = video.videoHeight;
-  const ctx = flipCanvas.getContext("2d");
-  ctx.translate(flipCanvas.width, flipCanvas.height);
-  ctx.rotate(Math.PI);
-  ctx.drawImage(video, 0, 0);
-  return flipCanvas;
+/**
+ * Width and height of the frame once turned: a quarter turn swaps them.
+ * @param {number} rotation 0, 90, 180 or 270 degrees clockwise
+ */
+export function turnedSize(width, height, rotation) {
+  return rotation % 180 ? { width: height, height: width } : { width, height };
+}
+
+// A copy of the current frame turned `rotation` degrees clockwise, about its centre.
+function turnedFrame(video, rotation) {
+  const { videoWidth: w, videoHeight: h } = video;
+  turnCanvas ??= document.createElement("canvas");
+  const size = turnedSize(w, h, rotation);
+  turnCanvas.width = size.width; // setting the size also clears the last transform
+  turnCanvas.height = size.height;
+  const ctx = turnCanvas.getContext("2d");
+  ctx.translate(size.width / 2, size.height / 2);
+  ctx.rotate((rotation * Math.PI) / 180);
+  ctx.drawImage(video, -w / 2, -h / 2);
+  return turnCanvas;
 }
 
 /**
@@ -64,17 +74,18 @@ function turnedFrame(video) {
  * @param {PoseLandmarker} landmarker
  * @param {HTMLVideoElement} video
  * @param {number} timestampMs e.g. performance.now()
- * @param {boolean} [flipped] the video is upside down, so turn it before detecting. Landmarks
+ * @param {number} [rotation] turn the frame this many degrees clockwise (0, 90, 180 or 270)
+ *   before detecting, for a camera whose picture comes in sideways or upside down. Landmarks
  *   then match the turned picture.
  * @returns {{x:number,y:number,z:number,visibility:number}[] | null}
  *   33 landmarks, or null if no person (or no new frame yet)
  */
-export function detect(landmarker, video, timestampMs, flipped = false) {
+export function detect(landmarker, video, timestampMs, rotation = 0) {
   if (video.readyState < 2) return null;
   // MediaPipe requires strictly increasing timestamps.
   if (timestampMs <= lastTimestamp) return null;
   lastTimestamp = timestampMs;
-  const result = landmarker.detectForVideo(flipped ? turnedFrame(video) : video, timestampMs);
+  const result = landmarker.detectForVideo(rotation ? turnedFrame(video, rotation) : video, timestampMs);
   return result.landmarks[0] ?? null;
 }
 
