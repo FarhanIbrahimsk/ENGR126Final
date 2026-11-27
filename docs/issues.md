@@ -35,8 +35,14 @@ Mirror of the GitHub Issues. Labels: `brain` (Farhan), `app` (Jacob), `shared` (
 - [x] `brain` Run classifier in browser (`classifier.js`) — code done and tested with an invented model; needs a real one
 - [x] `app` Show classifier results in UI, mobile layout fixes
 - [ ] `shared` Accuracy testing: rep counts vs. video, confusion matrix — Accuracy page is built, waits on footage
+- [x] `brain` Drop false reps (under 0.5s, or over 75° lean, e.g. walking back from the phone); loosen squat depth
+- [x] `brain` Pushups: elbow angle and body bend, rep counting, form rules (shallow, hips sagging or piked, no lockout)
+- [x] `app` Exercise switch on Live Set, History progress per exercise, tidier set summaries
+- [x] `app` Spoken feedback on Live Set
+- [x] `brain` Pushup fixes from phone testing: stricter pushup position, Get in position / Straighten arms hints. Works with the phone upright on the floor
 
 ## Week 6 — Nov 30 to Dec 4
 - [ ] `shared` Buffer + bug fixes
-- [ ] `shared` Deploy (GitHub Pages or Vercel) — workflow is in `.github/workflows/`; needs Pages switched on and a merge to `main`
+- [ ] `shared` Retest the false-rep filter on a phone with squats
+- [x] `shared` Deploy — GitHub Pages, publishes on every push to `main`
 - [ ] `shared` Demo run-through + report — drafts in `docs/demo-script.md` and `docs/report-outline.md`

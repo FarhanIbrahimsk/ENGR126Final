@@ -2,13 +2,13 @@
 
 Draft skeleton. Each section says where its material comes from. Numbers marked __ need real results.
 
-1. **Problem and goal.** Squat form feedback without extra hardware. (README)
-2. **System overview.** Camera, MediaPipe Pose, angles, rep counter, form rules, classifier, dashboard. Diagram of the pipeline and the split between `brain/` and `app/`. (README, `docs/data-contract.md`)
-3. **Rep counting.** The state machine, the thresholds and why there are separate up and down ones, the jitter bug found by simulation (see `docs/ai-log.md`, 2026-11-05). Results: __ of __ videos exact, average miss __ reps. (Accuracy page, `accuracy.csv`)
-4. **Form rules.** Shallow, lean, lockout; how the 45° lean limit was chosen and changed. (`formRules.js`, labeled reps)
-5. **Classifier.** Data: __ reps from __ people, __% bad. Features. Logistic regression vs random forest. Cross-person test against the rules baseline and the majority baseline, with the confusion matrix. Why JSON weights instead of TensorFlow.js. (`ml/results.json`, `ml/train.py`)
-6. **The app.** Live Set, Dashboard, History, Labeler, Accuracy; storage in IndexedDB; works on a phone. (screenshots)
-7. **Limits and what failed.** Camera angle sensitivity, head out of frame, one lift only, small dataset, lockout isn't in the labels, no testing on very different body types or lighting.
-8. **How we used AI.** What it wrote, what we checked, what it got wrong and how it was caught. Table from `docs/ai-log.md`.
+1. **Problem and goal.** Squat and pushup form feedback without extra hardware: just a phone or laptop camera. (README)
+2. **System overview.** Camera, MediaPipe Pose, angles, rep counter, form rules, classifier, dashboard, spoken feedback. Diagram of the pipeline and the split between `brain/` and `app/`. Squats follow the knee angle; pushups follow the elbow angle and the shoulder-hip-ankle line. (README, `docs/data-contract.md`)
+3. **Rep counting.** The state machine, the thresholds and why there are separate up and down ones, and the jitter bug found by simulation (see `docs/ai-log.md`, 2026-11-05). False reps from phone testing: walking back after setting up the phone counted, so movements under 0.5s or with over 75° of lean are dropped. Pushups count only in the pushup position and only after the arms have been straight once. Results: squats __ of __ videos exact, average miss __ reps; pushups __ of __ exact. (Accuracy page, `accuracy.csv`)
+4. **Form rules.** Squats: shallow, lean, lockout; how the depth and 45° lean limits were chosen and changed. Pushups: shallow (elbow over 110°), hips sagging or piked (over 35° from straight), lockout. The pushup limits were loosened after real pushups didn't register. (`formRules.js`, labeled reps, `docs/ai-log.md`)
+5. **Classifier (squats only).** Data: __ reps from __ people, __% bad. Features. Logistic regression vs random forest. Cross-person test against the rules baseline and the majority baseline, with the confusion matrix. Why JSON weights instead of TensorFlow.js. Pushups use the rules only. (`ml/results.json`, `ml/train.py`)
+6. **The app.** Live Set (exercise switch, live angles, successful reps out of attempts, spoken feedback), Dashboard, History (progress per exercise), Labeler, Accuracy; storage in IndexedDB; works on a phone and is deployed to GitHub Pages. (screenshots)
+7. **Limits and what failed.** Camera angle sensitivity, head out of frame. Pushups only track well with the phone upright on the floor; in landscape the picture came in turned and pushups stopped counting. Without knowing which way is down, a person standing in a sideways picture looks like someone lying on the floor. Classifier is squat only, no knee pushups, small dataset, lockout isn't in the labels, no testing on very different body types or lighting.
+8. **How we used AI.** What it wrote, what we checked, what it got wrong and how it was caught. Table from `docs/ai-log.md`. A good example: when pushups weren't counting, the first AI fix (a Flip camera button, then looser thresholds) didn't help. Simulated poses then showed a sideways picture explained both symptoms: no real reps and false reps from standing. Testing on the phone led us to keep it upright instead.
 9. **Division of work and timeline.**
 10. **Next steps.**
